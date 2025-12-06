@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: path.resolve(__dirname, "index.html"),
     },
-    outDir: "dist-platform",
+    outDir: "dist",
     emptyOutDir: true,
   },
 }));
