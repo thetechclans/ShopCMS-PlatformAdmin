@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import TenantApp from "./TenantApp";
+import PlatformApp from "./PlatformApp";
 import "./index.css";
 
-createRoot(document.getElementById("root")!).render(<TenantApp />);
+createRoot(document.getElementById("root")!).render(<PlatformApp />);
