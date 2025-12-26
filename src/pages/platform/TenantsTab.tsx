@@ -12,6 +12,7 @@ import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { PlanBadge } from "@/components/PlanBadge";
+import { PLAN_DEFINITIONS, type PlanType } from "@/lib/plans";
 
 interface Tenant {
   id: string;
@@ -29,7 +30,13 @@ const TenantsTab = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    slug: string;
+    subdomain: string;
+    status: string;
+    plan_type: PlanType;
+  }>({
     name: '',
     slug: '',
     subdomain: '',
@@ -102,22 +109,20 @@ const TenantsTab = () => {
 
         if (tenantError) throw tenantError;
 
-        // Define plan presets
-        const planPresets: Record<string, any> = {
-          basic: { max_products: 10, max_categories: 5, max_carousel_slides: 3, max_static_pages: 5, max_image_size_mb: 2 },
-          silver: { max_products: 50, max_categories: 15, max_carousel_slides: 10, max_static_pages: 20, max_image_size_mb: 5 },
-          gold: { max_products: 200, max_categories: 50, max_carousel_slides: 30, max_static_pages: 100, max_image_size_mb: 10 },
-        };
-
-        const preset = planPresets[formData.plan_type] || planPresets.basic;
+        const planDefinition = PLAN_DEFINITIONS[formData.plan_type];
+        const preset = planDefinition.defaultLimits;
 
         // Create tenant_limits automatically
         const { error: limitsError } = await supabase
-          .from('tenant_limits')
+          .from("tenant_limits")
           .insert({
             tenant_id: newTenant.id,
             plan_type: formData.plan_type,
-            ...preset
+            max_products: preset.maxProducts,
+            max_categories: preset.maxCategories,
+            max_carousel_slides: preset.maxCarouselSlides,
+            max_static_pages: preset.maxStaticPages,
+            max_image_size_mb: preset.maxImageSizeMb,
           });
 
         if (limitsError) {
@@ -265,14 +270,33 @@ const TenantsTab = () => {
                 {!editingTenant && (
                   <div>
                     <Label htmlFor="plan_type">Plan Type</Label>
-                    <Select value={formData.plan_type} onValueChange={(value) => setFormData({ ...formData, plan_type: value })}>
+                    <Select
+                      value={formData.plan_type}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          plan_type: value as PlanType,
+                        })
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="basic">Basic - 10 products, 5 categories</SelectItem>
-                        <SelectItem value="silver">Silver - 50 products, 15 categories</SelectItem>
-                        <SelectItem value="gold">Gold - 200 products, 50 categories</SelectItem>
+                        {(["basic", "silver", "gold"] as PlanType[]).map((plan) => {
+                          const definition = PLAN_DEFINITIONS[plan];
+                          const limits = definition.defaultLimits;
+                          const label =
+                            plan === "basic"
+                              ? `${definition.label} - ${limits.maxProducts} products, ${limits.maxCategories} categories`
+                              : `${definition.label} - up to ${limits.maxProducts} products`;
+
+                          return (
+                            <SelectItem key={plan} value={plan}>
+                              {label}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <p className="text-sm text-muted-foreground mt-1">

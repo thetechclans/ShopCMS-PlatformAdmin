@@ -2,20 +2,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Crown, Lock } from "lucide-react";
 import { PlanBadge } from "./PlanBadge";
+import { PLAN_DEFINITIONS, type PlanType } from "@/lib/plans";
 
 interface UpgradePromptProps {
   feature: string;
-  requiredPlan: 'silver' | 'gold';
-  currentPlan: 'basic' | 'silver' | 'gold';
+  requiredPlan: Exclude<PlanType, "basic">;
+  currentPlan: PlanType;
   description?: string;
 }
 
-export const UpgradePrompt = ({ 
-  feature, 
-  requiredPlan, 
+export const UpgradePrompt = ({
+  feature,
+  requiredPlan,
   currentPlan,
-  description 
+  description,
 }: UpgradePromptProps) => {
+  const requiredPlanLabel = PLAN_DEFINITIONS[requiredPlan].label;
+
   return (
     <Card className="border-2 border-dashed border-muted-foreground/20">
       <CardHeader>
@@ -25,7 +28,8 @@ export const UpgradePrompt = ({
           <PlanBadge planType={requiredPlan} size="sm" />
         </div>
         <CardDescription>
-          {description || `This feature requires a ${requiredPlan} tier plan or higher.`}
+          {description ||
+            `This feature requires a ${requiredPlanLabel} plan or higher.`}
         </CardDescription>
       </CardHeader>
       <CardContent>

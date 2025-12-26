@@ -7,12 +7,17 @@ export default defineConfig(({ mode }) => ({
   root: ".",
   server: {
     host: "0.0.0.0",
-    port: 5171,
+    port: 5170,
     strictPort: true,
     allowedHosts: true,
     hmr: {
       host: "localhost",
     },
+  },
+  preview: {
+    host: "0.0.0.0",
+    port: 5170,
+    strictPort: true,
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

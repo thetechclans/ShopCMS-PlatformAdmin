@@ -1,19 +1,20 @@
 import { ReactNode } from "react";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { UpgradePrompt } from "./UpgradePrompt";
+import { isAtLeastPlan, type PlanType } from "@/lib/plans";
 
 interface FeatureGateProps {
   feature: string;
-  requiredPlan: 'silver' | 'gold';
+  requiredPlan: Exclude<PlanType, "basic">;
   children: ReactNode;
   description?: string;
 }
 
-export const FeatureGate = ({ 
-  feature, 
-  requiredPlan, 
+export const FeatureGate = ({
+  feature,
+  requiredPlan,
   children,
-  description 
+  description,
 }: FeatureGateProps) => {
   const { features, isLoading } = usePlanFeatures();
 
@@ -21,9 +22,7 @@ export const FeatureGate = ({
     return <div>Loading...</div>;
   }
 
-  const hasAccess = 
-    (requiredPlan === 'silver' && (features.planType === 'silver' || features.planType === 'gold')) ||
-    (requiredPlan === 'gold' && features.planType === 'gold');
+  const hasAccess = isAtLeastPlan(features.planType, requiredPlan);
 
   if (!hasAccess) {
     return (
