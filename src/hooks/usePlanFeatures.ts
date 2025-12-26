@@ -1,11 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import {
+  PLAN_DEFINITIONS,
+  normalizePlanType,
+  getAnalyticsLevel,
+  planSupportsAnalytics,
+  type PlanType,
+} from "@/lib/plans";
 
 interface PlanFeatures {
+  planType: PlanType;
   canAccessThemes: boolean;
   canAccessAdvancedFeatures: boolean;
-  planType: 'basic' | 'silver' | 'gold';
+  hasAnalytics: boolean;
+  analyticsLevel: "none" | "standard" | "advanced";
   maxProducts: number;
   maxCategories: number;
   maxCarouselSlides: number;
@@ -20,7 +29,7 @@ export const usePlanFeatures = () => {
     queryKey: ["tenant-plan-features", tenantId],
     queryFn: async () => {
       if (!tenantId) return null;
-      
+
       const { data, error } = await supabase
         .from("tenant_limits")
         .select("*")
@@ -31,20 +40,26 @@ export const usePlanFeatures = () => {
       return data;
     },
     enabled: !!tenantId,
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    staleTime: 10 * 60 * 1000,
   });
 
-  const planType = (tenantLimits?.plan_type || 'basic') as 'basic' | 'silver' | 'gold';
+  const planType = normalizePlanType(tenantLimits?.plan_type);
+  const planDefinition = PLAN_DEFINITIONS[planType];
 
   const features: PlanFeatures = {
-    canAccessThemes: planType === 'gold',
-    canAccessAdvancedFeatures: planType === 'silver' || planType === 'gold',
     planType,
-    maxProducts: tenantLimits?.max_products || 10,
-    maxCategories: tenantLimits?.max_categories || 5,
-    maxCarouselSlides: tenantLimits?.max_carousel_slides || 3,
-    maxStaticPages: tenantLimits?.max_static_pages || 5,
-    maxImageSizeMb: Number(tenantLimits?.max_image_size_mb) || 2,
+    canAccessThemes: planDefinition.features.canAccessThemes,
+    canAccessAdvancedFeatures: planDefinition.features.canAccessAdvancedFeatures,
+    hasAnalytics: planSupportsAnalytics(planType),
+    analyticsLevel: getAnalyticsLevel(planType),
+    maxProducts: tenantLimits?.max_products ?? planDefinition.defaultLimits.maxProducts,
+    maxCategories: tenantLimits?.max_categories ?? planDefinition.defaultLimits.maxCategories,
+    maxCarouselSlides: tenantLimits?.max_carousel_slides ?? planDefinition.defaultLimits.maxCarouselSlides,
+    maxStaticPages: tenantLimits?.max_static_pages ?? planDefinition.defaultLimits.maxStaticPages,
+    maxImageSizeMb:
+      typeof tenantLimits?.max_image_size_mb === "number"
+        ? Number(tenantLimits.max_image_size_mb)
+        : planDefinition.defaultLimits.maxImageSizeMb,
   };
 
   return {

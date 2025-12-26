@@ -7,9 +7,9 @@ import { GoldTemplate } from "@/templates/GoldTemplate";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface TenantTemplateRouterProps {
-  slides: any[];
-  categories: any[];
-  sections: any[];
+  slides: unknown[];
+  categories: unknown[];
+  sections: unknown[];
   isLoading: boolean;
 }
 
@@ -103,7 +103,7 @@ export const TenantTemplateRouter = ({
         />
       );
     
-    case 'gold':
+    case 'gold': {
       // Determine theme variant for Gold tier
       const themeVariant = theme?.name?.toLowerCase().includes('dark') ? 'dark' : 'light';
       return (
@@ -115,6 +115,7 @@ export const TenantTemplateRouter = ({
           themeVariant={themeVariant}
         />
       );
+    }
     
     case 'basic':
     default:

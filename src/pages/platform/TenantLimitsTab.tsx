@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { Settings, ArrowUp } from "lucide-react";
 import { PlanBadge } from "@/components/PlanBadge";
+import { PLAN_DEFINITIONS, type PlanType } from "@/lib/plans";
 
 interface TenantLimit {
   id: string;
@@ -51,7 +52,7 @@ interface Tenant {
 const TenantLimitsTab = () => {
   const [open, setOpen] = useState(false);
   const [selectedLimit, setSelectedLimit] = useState<TenantLimit | null>(null);
-  const [planType, setPlanType] = useState<string>("basic");
+  const [planType, setPlanType] = useState<PlanType>("basic");
   const [maxProducts, setMaxProducts] = useState<number>(10);
   const [maxCategories, setMaxCategories] = useState<number>(5);
   const [maxImageSizeMb, setMaxImageSizeMb] = useState<number>(2.0);
@@ -136,20 +137,18 @@ const TenantLimitsTab = () => {
 
   const initializeLimitsMutation = useMutation({
     mutationFn: async (tenantId: string) => {
-      const preset = {
-        max_products: 10,
-        max_categories: 5,
-        max_carousel_slides: 3,
-        max_static_pages: 5,
-        max_image_size_mb: 2,
-      };
+      const preset = PLAN_DEFINITIONS.basic.defaultLimits;
 
       const { error } = await supabase
         .from("tenant_limits")
         .insert({
           tenant_id: tenantId,
           plan_type: "basic",
-          ...preset,
+          max_products: preset.maxProducts,
+          max_categories: preset.maxCategories,
+          max_carousel_slides: preset.maxCarouselSlides,
+          max_static_pages: preset.maxStaticPages,
+          max_image_size_mb: preset.maxImageSizeMb,
         });
 
       if (error) throw error;
@@ -166,7 +165,7 @@ const TenantLimitsTab = () => {
 
   const openEditDialog = (limit: TenantLimit) => {
     setSelectedLimit(limit);
-    setPlanType(limit.plan_type);
+    setPlanType(limit.plan_type as PlanType);
     setMaxProducts(limit.max_products);
     setMaxCategories(limit.max_categories);
     setMaxImageSizeMb(limit.max_image_size_mb);
@@ -180,20 +179,16 @@ const TenantLimitsTab = () => {
     updateLimitMutation.mutate();
   };
 
-  const quickUpgrade = (limit: TenantLimit, newPlan: string) => {
-    const presets: Record<string, any> = {
-      basic: { max_products: 10, max_categories: 5, max_carousel_slides: 3, max_static_pages: 5, max_image_size_mb: 2 },
-      silver: { max_products: 50, max_categories: 15, max_carousel_slides: 10, max_static_pages: 20, max_image_size_mb: 5 },
-      gold: { max_products: 200, max_categories: 50, max_carousel_slides: 30, max_static_pages: 100, max_image_size_mb: 10 },
-    };
+  const quickUpgrade = (limit: TenantLimit, newPlan: PlanType) => {
+    const preset = PLAN_DEFINITIONS[newPlan].defaultLimits;
 
     setSelectedLimit(limit);
     setPlanType(newPlan);
-    setMaxProducts(presets[newPlan].max_products);
-    setMaxCategories(presets[newPlan].max_categories);
-    setMaxCarouselSlides(presets[newPlan].max_carousel_slides);
-    setMaxStaticPages(presets[newPlan].max_static_pages);
-    setMaxImageSizeMb(presets[newPlan].max_image_size_mb);
+    setMaxProducts(preset.maxProducts);
+    setMaxCategories(preset.maxCategories);
+    setMaxCarouselSlides(preset.maxCarouselSlides);
+    setMaxStaticPages(preset.maxStaticPages);
+    setMaxImageSizeMb(preset.maxImageSizeMb);
     setOpen(true);
   };
 

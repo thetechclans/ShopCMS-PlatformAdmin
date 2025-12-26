@@ -50,6 +50,74 @@ export type Database = {
         }
         Relationships: []
       }
+      analytics_events: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          occurred_at: string
+          page_id: string | null
+          path: string | null
+          product_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string
+          page_id?: string | null
+          path?: string | null
+          product_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string
+          page_id?: string | null
+          path?: string | null
+          product_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analytics_events_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analytics_events_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analytics_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carousel_slides: {
         Row: {
           created_at: string | null
@@ -909,6 +977,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tenant_daily_metrics: {
+        Row: {
+          category_views: number | null
+          day: string | null
+          page_views: number | null
+          product_views: number | null
+          tenant_id: string | null
+        }
+        Insert: {
+          category_views?: number | null
+          day?: string | null
+          page_views?: number | null
+          product_views?: number | null
+          tenant_id?: string | null
+        }
+        Update: {
+          category_views?: number | null
+          day?: string | null
+          page_views?: number | null
+          product_views?: number | null
+          tenant_id?: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {

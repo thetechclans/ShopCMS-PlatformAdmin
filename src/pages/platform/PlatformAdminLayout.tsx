@@ -12,7 +12,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Users, Globe, Settings, Palette } from "lucide-react";
+import { LogOut, Users, Globe, Settings, Palette, BarChart2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { NavLink } from "@/components/NavLink";
 
@@ -21,6 +21,7 @@ const managementItems = [
   { title: "Domains", url: "/platform/admin/domains", icon: Globe },
   { title: "Users", url: "/platform/admin/users", icon: Users },
   { title: "Limits", url: "/platform/admin/limits", icon: Settings },
+  { title: "Analytics", url: "/platform/admin/analytics", icon: BarChart2 },
 ];
 
 const templateItems = [
