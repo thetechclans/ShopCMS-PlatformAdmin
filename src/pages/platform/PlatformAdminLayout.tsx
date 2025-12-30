@@ -12,7 +12,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Users, Globe, Settings, Palette, BarChart2 } from "lucide-react";
+import { LogOut, Users, Globe, Settings, Palette, BarChart2, CreditCard, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { NavLink } from "@/components/NavLink";
 
@@ -22,6 +22,11 @@ const managementItems = [
   { title: "Users", url: "/platform/admin/users", icon: Users },
   { title: "Limits", url: "/platform/admin/limits", icon: Settings },
   { title: "Analytics", url: "/platform/admin/analytics", icon: BarChart2 },
+];
+
+const subscriptionItems = [
+  { title: "Subscription Plans", url: "/platform/admin/subscriptions", icon: CreditCard },
+  { title: "Tenant Requests", url: "/platform/admin/tenant-requests", icon: FileText },
 ];
 
 const templateItems = [
@@ -57,6 +62,28 @@ export const PlatformAdminLayout = () => {
                       <SidebarMenuButton asChild>
                         <NavLink 
                           to={item.url} 
+                          className="flex items-center gap-2"
+                          activeClassName="bg-accent text-accent-foreground"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Subscriptions</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {subscriptionItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink 
+                          to={item.url}
                           className="flex items-center gap-2"
                           activeClassName="bg-accent text-accent-foreground"
                         >

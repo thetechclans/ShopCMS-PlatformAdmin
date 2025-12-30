@@ -2,7 +2,7 @@
 
 ## High-Level Purpose
 
-ShopCMS is a multi-tenant e‑commerce CMS built on Supabase, React, Vite, React Router, and TanStack Query.  
+ShopCMS is a multi-tenant e‑commerce CMS built on Supabase, React, Vite, React Router, and TanStack Query.
 This repository (`ShopCMS-PlatformAdmin`) is the **platform owner’s control panel**:
 
 - Manages tenants (shops) and their lifecycle.
@@ -176,18 +176,18 @@ Together they form a small SaaS: the Platform Admin sells plans and configures d
 
 ## Important Notes (For Future Development)
 
-- **Plan Types as a Source of Truth:**  
+- **Plan Types as a Source of Truth:**
   Introduce a central `plans` module (shared between Platform and Tenant) that defines:
   - Plan IDs (`basic`, `silver`, `gold`).
   - Display names, feature flags, and default limits.
   - Mapping from DB values to TypeScript types.
 
-- **Feature/Limit Enforcement:**  
+- **Feature/Limit Enforcement:**
   Move towards a combination of:
   - UI gating (`FeatureGate`, `UsageMeter`).
   - Backend enforcement (Postgres constraints or Supabase functions) for critical limits.
 
-- **Analytics Integration (Current State & Extensibility):**  
+- **Analytics Integration (Current State & Extensibility):**
   Analytics is wired end-to-end with clear plan rules:
   - Only **Silver** and **Gold** plan tenants see analytics menus and dashboards.
   - Basic plan tenants do not see analytics menu items or pages and cannot read analytics tables due to RLS.
@@ -195,18 +195,18 @@ Together they form a small SaaS: the Platform Admin sells plans and configures d
   - Add new event types or dimensions to `analytics_events` and update aggregation views/RPCs.
   - Grow `PlatformAnalytics.tsx` into a richer cross-tenant analytics and health overview.
 
-- **Shared Code Between Platform and Tenant:**  
+- **Shared Code Between Platform and Tenant:**
   Consider a small shared library or internal package (e.g. `ShopCMS-core`) for:
   - Supabase schema types (generated once).
   - Plan definitions and feature flags.
   - Analytics event names and payload typings.
 
-- **Environment and Multi-Domain:**  
+- **Environment and Multi-Domain:**
   As you grow:
   - Make `PLATFORM_DOMAIN` and tenant URL construction environment-aware.
   - Standardize URL schemes for tenant subdomains and slugs so both apps generate consistent links.
 
-- **Extensibility for New Plans:**  
+- **Extensibility for New Plans:**
   Design with future plans in mind (e.g. Platinum):
   - Avoid hard-coded plan checks scattered across code.
   - Use configuration-driven plan capabilities so adding a new plan is mostly data work.
@@ -214,3 +214,26 @@ Together they form a small SaaS: the Platform Admin sells plans and configures d
 ---
 
 This README is meant as a high-level architecture and business-flow overview for the Platform Admin and its relationship with the Tenant app. For detailed implementation, consult the referenced file paths in each section.
+
+
+
+
+
+
+
+# Get Changes
+git diff --patch origin/Original_Code_v3-3..Development > changes.patch
+
+
+# Deploy Database Migrations
+supabase migration up --linked
+
+# Deploy Functions First
+supabase functions deploy tenant-signup --project-ref biofpmqafyjcemhffnus
+
+supabase functions deploy tenant-signup --project-ref default
+
+supabase db push --db-url "postgresql://postgres:Amira%402594@168.220.234.220:5433/postgres?sslmode=disable" --debug
+
+
+supabase db push --db-url "postgresql://postgres:Amira_2594@168.220.234.220:5433/postgres?sslmode=disable" --debug

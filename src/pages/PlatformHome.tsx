@@ -1334,6 +1334,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { getActiveSubscriptionPlans, type SubscriptionPlan } from "@/lib/api/subscriptions";
+import { TenantRequestForm } from "@/components/tenant/TenantRequestForm";
+import { toast } from "sonner";
 import { 
   ShoppingCart,
   Layout,
@@ -1368,13 +1371,32 @@ import { Badge } from "@/components/ui/badge";
 const PlatformHome = () => {
   const [scrollY, setScrollY] = useState(0);
   const { ref: heroRef, inView: heroInView } = useInView({ threshold: 0.1 });
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Fetch active subscription plans
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const plans = await getActiveSubscriptionPlans();
+        setSubscriptionPlans(plans);
+      } catch (error: any) {
+        console.error('Error fetching subscription plans:', error);
+        toast.error('Failed to load subscription plans');
+      } finally {
+        setIsLoadingPlans(false);
+      }
+    };
+    fetchPlans();
   }, []);
 
   // Based on PDF document features
@@ -1459,89 +1481,39 @@ const PlatformHome = () => {
     }
   ];
 
-  const pricingPlans = [
-    {
-      id: "silver",
-      name: "Silver",
-      price: "$29",
-      period: "/month",
-      description: "Perfect for small shops & startups",
-      icon: <Gem className="w-10 h-10 text-gray-400" />,
-      color: "border-gray-300",
-      buttonColor: "from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800",
-      gradientBg: "from-gray-50 via-gray-100 to-gray-200",
-      popular: false,
-      features: [
-        { text: "Up to 50 products", included: true },
-        { text: "15 categories limit", included: true },
-        { text: "3 carousel slides", included: true },
-        { text: "20 static pages", included: true },
-        { text: "1 custom domain", included: true },
-        { text: "Email support", included: true },
-        { text: "Basic analytics", included: true },
-        { text: "Mobile responsive design", included: true },
-        { text: "WhatsApp integration", included: false },
-        { text: "Priority support", included: false },
-        { text: "Advanced analytics", included: false },
-        { text: "Custom branding", included: false }
-      ],
-      buttonText: "Start Silver Plan"
-    },
-    {
-      id: "gold",
-      name: "Gold",
-      price: "$79",
-      period: "/month",
-      description: "Best for growing businesses",
-      icon: <Crown className="w-10 h-10 text-yellow-500" />,
-      color: "border-yellow-400",
-      buttonColor: "from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600",
-      gradientBg: "from-yellow-50 via-orange-50 to-amber-50",
-      popular: true,
-      features: [
-        { text: "Unlimited products", included: true },
-        { text: "Unlimited categories", included: true },
-        { text: "10 carousel slides", included: true },
-        { text: "50 static pages", included: true },
-        { text: "3 custom domains", included: true },
-        { text: "Priority email & chat support", included: true },
-        { text: "Advanced analytics", included: true },
-        { text: "WhatsApp integration", included: true },
-        { text: "Multi-language support", included: true },
-        { text: "Custom branding", included: true },
-        { text: "API access", included: false },
-        { text: "Custom integrations", included: false }
-      ],
-      buttonText: "Start Gold Plan"
-    },
-    {
-      id: "platinum",
-      name: "Platinum",
-      price: "$199",
-      period: "/month",
-      description: "Enterprise-grade solution",
-      icon: <Award className="w-10 h-10 text-blue-500" />,
-      color: "border-blue-400",
-      buttonColor: "from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600",
-      gradientBg: "from-blue-50 via-indigo-50 to-purple-50",
-      popular: false,
-      features: [
-        { text: "Everything in Gold", included: true },
-        { text: "Unlimited everything", included: true },
-        { text: "White-label solution", included: true },
-        { text: "Dedicated account manager", included: true },
-        { text: "Custom AI models", included: true },
-        { text: "API access", included: true },
-        { text: "Custom integrations", included: true },
-        { text: "99.9% SLA uptime", included: true },
-        { text: "Advanced security", included: true },
-        { text: "Custom workflows", included: true },
-        { text: "Training & onboarding", included: true },
-        { text: "24/7 phone support", included: true }
-      ],
-      buttonText: "Contact Sales"
+  // Helper function to get plan styling based on plan_type
+  const getPlanStyling = (plan_type: string) => {
+    switch (plan_type) {
+      case 'basic':
+        return {
+          icon: <Gem className="w-10 h-10 text-gray-500" />,
+          color: "border-gray-300",
+          buttonColor: "from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800",
+          gradientBg: "from-gray-50 via-gray-100 to-gray-200"
+        };
+      case 'silver':
+        return {
+          icon: <Crown className="w-10 h-10 text-purple-500" />,
+          color: "border-purple-300",
+          buttonColor: "from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700",
+          gradientBg: "from-purple-50 via-pink-50 to-rose-50"
+        };
+      case 'gold':
+        return {
+          icon: <Award className="w-10 h-10 text-yellow-500" />,
+          color: "border-yellow-400",
+          buttonColor: "from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600",
+          gradientBg: "from-yellow-50 via-orange-50 to-amber-50"
+        };
+      default:
+        return {
+          icon: <Gem className="w-10 h-10 text-gray-400" />,
+          color: "border-gray-300",
+          buttonColor: "from-gray-600 to-gray-700",
+          gradientBg: "from-gray-50 via-gray-100 to-gray-200"
+        };
     }
-  ];
+  };
 
   const stats = [
     { value: "5,000+", label: "Stores Created", icon: <ShoppingCart />, color: "from-blue-500 to-cyan-500" },
@@ -1577,7 +1549,6 @@ const PlatformHome = () => {
     }
   ];
 
-  const selectedPlanData = pricingPlans.find(plan => plan.id === selectedPlan);
 
   return (
     <div className="min-h-screen bg-white overflow-hidden">
@@ -1843,217 +1814,125 @@ const PlatformHome = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {pricingPlans.map((plan, index) => (
-              <motion.div
-                key={plan.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.2 }}
-                viewport={{ once: true }}
-                className="relative"
-                onClick={() => {
-                  setSelectedPlan(plan.id);
-                  setShowPlanModal(true);
-                }}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                    <Badge className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0 shadow-lg">
-                      <Star className="w-4 h-4 mr-2" />
-                      Most Popular
-                    </Badge>
-                  </div>
-                )}
-                
-                <Card className={`h-full border-2 ${plan.color} hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] cursor-pointer ${plan.popular ? 'shadow-xl' : 'shadow-lg'}`}>
-                  <div className={`absolute inset-0 bg-gradient-to-br ${plan.gradientBg} opacity-50 -z-10 rounded-lg`} />
-                  
-                  <CardHeader className="text-center pb-6 pt-8">
-                    <div className="flex justify-center mb-4">
-                      <div className={`p-4 rounded-2xl bg-gradient-to-br ${plan.gradientBg} border`}>
-                        {plan.icon}
+          {isLoadingPlans ? (
+            <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="h-[500px] animate-pulse bg-gray-100" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {subscriptionPlans.map((plan, index) => {
+                const styling = getPlanStyling(plan.plan_type);
+                return (
+                  <motion.div
+                    key={plan.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.2 }}
+                    viewport={{ once: true }}
+                    className="relative"
+                    onClick={() => {
+                      setSelectedPlan(plan);
+                      setShowRequestForm(true);
+                    }}
+                  >
+                    {plan.is_popular && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                        <Badge className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0 shadow-lg">
+                          <Star className="w-4 h-4 mr-2" />
+                          Most Popular
+                        </Badge>
                       </div>
-                    </div>
-                    <CardTitle className="text-3xl">{plan.name}</CardTitle>
-                    <CardDescription className="text-base">{plan.description}</CardDescription>
-                    <div className="mt-6">
-                      <span className="text-5xl font-bold">{plan.price}</span>
-                      <span className="text-gray-600 text-lg ml-2">{plan.period}</span>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="pt-0">
-                    <div className="border-t pt-6">
-                      <h4 className="font-semibold mb-4 text-gray-700 text-center">Key Features:</h4>
-                      <ul className="space-y-3">
-                        {plan.features.slice(0, 6).map((feature, idx) => (
-                          <li key={idx} className="flex items-center">
-                            {feature.included ? (
-                              <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                            ) : (
-                              <X className="w-5 h-5 text-gray-300 mr-3 flex-shrink-0" />
-                            )}
-                            <span className={`text-sm ${feature.included ? 'text-gray-700' : 'text-gray-400'}`}>
-                              {feature.text}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="mt-4 text-center">
-                        <Button variant="link" className="text-blue-600 hover:text-blue-700">
-                          View All Features →
+                    )}
+                    
+                    <Card className={`h-full border-2 ${styling.color} hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] cursor-pointer ${plan.is_popular ? 'shadow-xl' : 'shadow-lg'}`}>
+                      <div className={`absolute inset-0 bg-gradient-to-br ${styling.gradientBg} opacity-50 -z-10 rounded-lg`} />
+                      
+                      <CardHeader className="text-center pb-6 pt-8">
+                        <div className="flex justify-center mb-4">
+                          <div className={`p-4 rounded-2xl bg-gradient-to-br ${styling.gradientBg} border`}>
+                            {styling.icon}
+                          </div>
+                        </div>
+                        <CardTitle className="text-3xl">{plan.name}</CardTitle>
+                        <CardDescription className="text-base">{plan.description}</CardDescription>
+                        <div className="mt-6">
+                          <span className="text-5xl font-bold">₹{plan.price}</span>
+                          <span className="text-gray-600 text-lg ml-2">{plan.period}</span>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="pt-0">
+                        <div className="border-t pt-6">
+                          <h4 className="font-semibold mb-4 text-gray-700 text-center">Key Features:</h4>
+                          <ul className="space-y-3">
+                            {plan.features
+                              ?.sort((a, b) => a.display_order - b.display_order)
+                              .slice(0, expandedPlanId === plan.id ? undefined : 6)
+                              .map((feature, idx) => (
+                                <li key={idx} className="flex items-center">
+                                  {feature.is_included ? (
+                                    <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                                  ) : (
+                                    <X className="w-5 h-5 text-gray-300 mr-3 flex-shrink-0" />
+                                  )}
+                                  <span className={`text-sm ${feature.is_included ? 'text-gray-700' : 'text-gray-400'}`}>
+                                    {feature.feature_text}
+                                  </span>
+                                </li>
+                              ))}
+                          </ul>
+                          {(plan.features?.length || 0) > 6 && (
+                            <div className="mt-4 text-center">
+                              <Button 
+                                variant="link" 
+                                className="text-blue-600 hover:text-blue-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedPlanId(expandedPlanId === plan.id ? null : plan.id);
+                                }}
+                              >
+                                {expandedPlanId === plan.id 
+                                  ? 'Show less' 
+                                  : `+${(plan.features?.length || 0) - 6} more features`
+                                }
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                      
+                      <CardFooter className="pt-0">
+                        <Button 
+                          className={`w-full py-6 text-lg font-semibold bg-gradient-to-r ${styling.buttonColor} text-white`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPlan(plan);
+                            setShowRequestForm(true);
+                          }}
+                        >
+                          Request This Plan
+                          <ExternalLink className="ml-2 w-5 h-5" />
                         </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                  
-                  <CardFooter className="pt-0">
-                    <Button 
-                      className={`w-full py-6 text-lg font-semibold bg-gradient-to-r ${plan.buttonColor} text-white`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPlan(plan.id);
-                        setShowPlanModal(true);
-                      }}
-                    >
-                      {plan.buttonText}
-                      <ExternalLink className="ml-2 w-5 h-5" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                      </CardFooter>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Plan Modal */}
-      <AnimatePresence>
-        {showPlanModal && selectedPlanData && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto"
-            >
-              <Card className="border-0 shadow-2xl">
-                <div className={`absolute inset-0 bg-gradient-to-br ${selectedPlanData.gradientBg} opacity-20 rounded-lg -z-10`} />
-                
-                <CardHeader className="relative">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-4 top-4"
-                    onClick={() => setShowPlanModal(false)}
-                  >
-                    <X className="w-5 h-5" />
-                  </Button>
-                  
-                  <div className="text-center pt-8">
-                    <div className="flex justify-center mb-6">
-                      <div className={`p-6 rounded-3xl bg-gradient-to-br ${selectedPlanData.gradientBg} border shadow-lg`}>
-                        {selectedPlanData.icon}
-                      </div>
-                    </div>
-                    <CardTitle className="text-4xl mb-2">{selectedPlanData.name} Plan</CardTitle>
-                    <CardDescription className="text-xl">{selectedPlanData.description}</CardDescription>
-                    <div className="mt-6">
-                      <span className="text-6xl font-bold">{selectedPlanData.price}</span>
-                      <span className="text-2xl text-gray-600 ml-2">{selectedPlanData.period}</span>
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="px-8">
-                  <div className="grid md:grid-cols-2 gap-8">
-                    <div>
-                      <h3 className="text-xl font-bold mb-6 text-gray-800">Features Included</h3>
-                      <div className="space-y-4">
-                        {selectedPlanData.features.map((feature, idx) => (
-                          <div key={idx} className="flex items-start">
-                            {feature.included ? (
-                              <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-3 flex-shrink-0">
-                                <CheckCircle className="w-4 h-4 text-green-600" />
-                              </div>
-                            ) : (
-                              <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-3 flex-shrink-0">
-                                <X className="w-4 h-4 text-gray-400" />
-                              </div>
-                            )}
-                            <span className={`${feature.included ? 'text-gray-800' : 'text-gray-400'}`}>
-                              {feature.text}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-xl font-bold mb-6 text-gray-800">Plan Benefits</h3>
-                      <div className="space-y-6">
-                        <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
-                          <h4 className="font-bold mb-2 text-gray-800">Perfect For</h4>
-                          <p className="text-gray-600">
-                            {selectedPlanData.name === 'Silver' 
-                              ? 'Small businesses, startups, and individual entrepreneurs'
-                              : selectedPlanData.name === 'Gold'
-                              ? 'Growing businesses with expanding product catalogs'
-                              : 'Enterprise businesses requiring custom solutions'
-                            }
-                          </p>
-                        </div>
-                        
-                        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl">
-                          <h4 className="font-bold mb-2 text-gray-800">Support</h4>
-                          <p className="text-gray-600">
-                            {selectedPlanData.name === 'Silver' 
-                              ? 'Email support with 48-hour response time'
-                              : selectedPlanData.name === 'Gold'
-                              ? 'Priority email & chat support with 24-hour response'
-                              : 'Dedicated account manager with 24/7 phone support'
-                            }
-                          </p>
-                        </div>
-                        
-                        <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl">
-                          <h4 className="font-bold mb-2 text-gray-800">Free Trial</h4>
-                          <p className="text-gray-600">
-                            All plans include a 14-day free trial with full access to all features.
-                            No credit card required to start.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                
-                <CardFooter className="flex flex-col sm:flex-row gap-4 justify-center px-8 pb-8">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="px-8 py-6 text-lg"
-                    onClick={() => setShowPlanModal(false)}
-                  >
-                    Back to Plans
-                  </Button>
-                  <Button
-                    size="lg"
-                    className={`px-8 py-6 text-lg bg-gradient-to-r ${selectedPlanData.buttonColor} text-white`}
-                    asChild
-                  >
-                    <Link to={selectedPlanData.name === 'Platinum' ? "/contact" : "/auth"}>
-                      {selectedPlanData.name === 'Platinum' ? 'Contact Sales Team' : 'Start Free Trial'}
-                      <ChevronRight className="ml-2 w-5 h-5" />
-                    </Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Tenant Request Form Modal */}
+      {selectedPlan && (
+        <TenantRequestForm
+          selectedPlan={selectedPlan}
+          open={showRequestForm}
+          onOpenChange={setShowRequestForm}
+        />
+      )}
 
       {/* How It Works Section */}
       <section id="how-it-works" className="py-20 bg-gradient-to-b from-blue-50/30 to-purple-50/30">
