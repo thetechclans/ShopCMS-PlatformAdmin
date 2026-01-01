@@ -131,14 +131,14 @@ export const PublicNavBar = () => {
                   {item.label}
                 </Link>
               ))}
-              <Link
+              {/* <Link
                 to="/auth"
                 className="text-sm opacity-70 hover:opacity-100 transition-opacity pt-4 border-t"
                 style={{ borderColor: config?.text_color || 'currentColor' }}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Admin Login
-              </Link>
+              </Link> */}
             </div>
           </div>
         )}
