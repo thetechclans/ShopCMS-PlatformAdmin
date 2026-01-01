@@ -35,12 +35,17 @@ export function useUserCountry(): UserCountryData {
           const isExpired = Date.now() - timestamp > CACHE_DURATION;
           
           if (!isExpired) {
+            console.log('Using cached country data:', cachedData);
             setData({
               ...cachedData,
               isLoading: false,
               error: null,
             });
             return;
+          } else {
+            // Clear expired cache
+            localStorage.removeItem(CACHE_KEY);
+            console.log('Cache expired, fetching fresh country data');
           }
         }
 
@@ -53,6 +58,7 @@ export function useUserCountry(): UserCountryData {
         }
 
         const result = await response.json();
+        console.log('IP API Result:', result);
         
         const countryData = {
           country: result.country_name || '',

@@ -1369,6 +1369,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useUserCountry, formatPrice } from "@/hooks/useUserCountry";
 
 const PlatformHome = () => {
   const [scrollY, setScrollY] = useState(0);
@@ -1378,6 +1379,14 @@ const PlatformHome = () => {
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
+  
+  // Get user's country for currency localization
+  const { isIndia, isLoading: isLoadingCountry, country } = useUserCountry();
+  
+  // Debug log for testing
+  useEffect(() => {
+    console.log('Country Detection:', { country, isIndia, isLoadingCountry });
+  }, [country, isIndia, isLoadingCountry]);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -1699,14 +1708,14 @@ const PlatformHome = () => {
                 </div>
 
                 {/* Store Content */}
-                <div className="p-6 bg-gradient-to-br from-white via-white to-gray-50">
+                <div className="p-3 sm:p-6 bg-gradient-to-br from-white via-white to-gray-50">
                   {/* Simple Navigation */}
-                  <div className="flex items-center justify-between mb-6 px-4 py-3 bg-white rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                        <Store className="w-5 h-5 text-white" />
+                  <div className="flex items-center justify-between mb-4 sm:mb-6 px-2 sm:px-4 py-2 sm:py-3 bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
+                    <div className="flex items-center space-x-2 sm:space-x-3">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <Store className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                       </div>
-                      <span className="text-lg font-bold text-gray-800">TechMart</span>
+                      <span className="text-sm sm:text-lg font-bold text-gray-800">TechMart</span>
                     </div>
 
                     <div className="hidden md:flex space-x-6">
@@ -1730,12 +1739,12 @@ const PlatformHome = () => {
                   </div>
 
                   {/* Hero Banner */}
-                  <div className="mb-6 relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6">
+                  <div className="mb-4 sm:mb-6 relative overflow-hidden rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-3 sm:p-6">
                     <div className="relative z-10 flex items-center justify-between">
                       <div className="text-white">
-                        <p className="text-xs font-medium text-blue-200 mb-1">🎉 New Arrivals</p>
-                        <h3 className="text-xl font-bold mb-1">Summer Sale</h3>
-                        <p className="text-sm text-blue-100 mb-3">Up to 40% off on selected items</p>
+                        <p className="text-[10px] sm:text-xs font-medium text-blue-200 mb-0.5 sm:mb-1">🎉 New Arrivals</p>
+                        <h3 className="text-base sm:text-xl font-bold mb-0.5 sm:mb-1">Summer Sale</h3>
+                        <p className="text-xs sm:text-sm text-blue-100 mb-2 sm:mb-3">Up to 40% off on selected items</p>
                         <button className="px-4 py-1.5 bg-white text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors">
                           Shop Now
                         </button>
@@ -1751,97 +1760,97 @@ const PlatformHome = () => {
                   </div>
 
                   {/* Featured Products Section */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-bold text-gray-800">Featured Products</h4>
-                      <span className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer font-medium">View All →</span>
+                  <div className="mb-4 sm:mb-6">
+                    <div className="flex items-center justify-between mb-2 sm:mb-4">
+                      <h4 className="text-sm sm:text-lg font-bold text-gray-800">Featured Products</h4>
+                      <span className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 cursor-pointer font-medium">View All →</span>
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
                       {/* Product 1 */}
-                      <div className="group bg-white rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer">
-                        <div className="relative h-28 bg-gradient-to-br from-blue-100 via-blue-50 to-purple-100 flex items-center justify-center">
-                          <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl shadow-lg flex items-center justify-center">
-                            <Clock className="w-8 h-8 text-white" />
+                      <div className="group bg-white rounded-lg sm:rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer">
+                        <div className="relative h-20 sm:h-28 bg-gradient-to-br from-blue-100 via-blue-50 to-purple-100 flex items-center justify-center">
+                          <div className="w-10 h-10 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg sm:rounded-xl shadow-lg flex items-center justify-center">
+                            <Clock className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
                           </div>
-                          <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-semibold">-20%</span>
-                          <div className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-red-500 text-sm">♥</span>
+                          <span className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-red-500 text-white text-[8px] sm:text-xs px-1 sm:px-2 py-0.5 rounded-full font-semibold">-20%</span>
+                          <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-5 h-5 sm:w-7 sm:h-7 bg-white/90 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-red-500 text-xs sm:text-sm">♥</span>
                           </div>
                         </div>
-                        <div className="p-3">
-                          <p className="text-xs text-gray-500 mb-1">Watches</p>
-                          <h5 className="text-sm font-semibold text-gray-800 mb-1 truncate">Premium Chronograph</h5>
-                          <div className="flex items-center mb-2">
-                            <div className="flex text-yellow-400 text-xs">★★★★★</div>
-                            <span className="text-xs text-gray-400 ml-1">(128)</span>
+                        <div className="p-2 sm:p-3">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Watches</p>
+                          <h5 className="text-xs sm:text-sm font-semibold text-gray-800 mb-0.5 sm:mb-1 truncate">Premium Chronograph</h5>
+                          <div className="flex items-center mb-1 sm:mb-2">
+                            <div className="flex text-yellow-400 text-[10px] sm:text-xs">★★★★★</div>
+                            <span className="text-[10px] sm:text-xs text-gray-400 ml-1">(128)</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div>
-                              <span className="text-sm font-bold text-gray-900">₹2,499</span>
-                              <span className="text-xs text-gray-400 line-through ml-1">₹3,199</span>
+                              <span className="text-xs sm:text-sm font-bold text-gray-900">₹2,499</span>
+                              <span className="text-[10px] sm:text-xs text-gray-400 line-through ml-0.5 sm:ml-1">₹3,199</span>
                             </div>
-                            <button className="w-7 h-7 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center justify-center transition-colors">
-                              <span className="text-white text-lg font-light">+</span>
+                            <button className="w-5 h-5 sm:w-7 sm:h-7 bg-blue-600 hover:bg-blue-700 rounded-md sm:rounded-lg flex items-center justify-center transition-colors">
+                              <span className="text-white text-sm sm:text-lg font-light">+</span>
                             </button>
                           </div>
                         </div>
                       </div>
 
                       {/* Product 2 */}
-                      <div className="group bg-white rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer">
-                        <div className="relative h-28 bg-gradient-to-br from-purple-100 via-pink-50 to-rose-100 flex items-center justify-center">
-                          <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl shadow-lg flex items-center justify-center">
-                            <ShoppingBag className="w-8 h-8 text-white" />
+                      <div className="group bg-white rounded-lg sm:rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer">
+                        <div className="relative h-20 sm:h-28 bg-gradient-to-br from-purple-100 via-pink-50 to-rose-100 flex items-center justify-center">
+                          <div className="w-10 h-10 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg sm:rounded-xl shadow-lg flex items-center justify-center">
+                            <ShoppingBag className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
                           </div>
-                          <span className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-semibold">New</span>
-                          <div className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-red-500 text-sm">♥</span>
+                          <span className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-green-500 text-white text-[8px] sm:text-xs px-1 sm:px-2 py-0.5 rounded-full font-semibold">New</span>
+                          <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-5 h-5 sm:w-7 sm:h-7 bg-white/90 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-red-500 text-xs sm:text-sm">♥</span>
                           </div>
                         </div>
-                        <div className="p-3">
-                          <p className="text-xs text-gray-500 mb-1">Fashion</p>
-                          <h5 className="text-sm font-semibold text-gray-800 mb-1 truncate">Designer Collection</h5>
-                          <div className="flex items-center mb-2">
-                            <div className="flex text-yellow-400 text-xs">★★★★☆</div>
-                            <span className="text-xs text-gray-400 ml-1">(87)</span>
+                        <div className="p-2 sm:p-3">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Fashion</p>
+                          <h5 className="text-xs sm:text-sm font-semibold text-gray-800 mb-0.5 sm:mb-1 truncate">Designer Collection</h5>
+                          <div className="flex items-center mb-1 sm:mb-2">
+                            <div className="flex text-yellow-400 text-[10px] sm:text-xs">★★★★☆</div>
+                            <span className="text-[10px] sm:text-xs text-gray-400 ml-1">(87)</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div>
-                              <span className="text-sm font-bold text-gray-900">₹1,899</span>
+                              <span className="text-xs sm:text-sm font-bold text-gray-900">₹1,899</span>
                             </div>
-                            <button className="w-7 h-7 bg-purple-600 hover:bg-purple-700 rounded-lg flex items-center justify-center transition-colors">
-                              <span className="text-white text-lg font-light">+</span>
+                            <button className="w-5 h-5 sm:w-7 sm:h-7 bg-purple-600 hover:bg-purple-700 rounded-md sm:rounded-lg flex items-center justify-center transition-colors">
+                              <span className="text-white text-sm sm:text-lg font-light">+</span>
                             </button>
                           </div>
                         </div>
                       </div>
 
                       {/* Product 3 */}
-                      <div className="group bg-white rounded-xl border border-gray-100 hover:border-emerald-200 hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer">
-                        <div className="relative h-28 bg-gradient-to-br from-emerald-100 via-green-50 to-teal-100 flex items-center justify-center">
-                          <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl shadow-lg flex items-center justify-center">
-                            <Gem className="w-8 h-8 text-white" />
+                      <div className="group bg-white rounded-lg sm:rounded-xl border border-gray-100 hover:border-emerald-200 hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer hidden sm:block">
+                        <div className="relative h-20 sm:h-28 bg-gradient-to-br from-emerald-100 via-green-50 to-teal-100 flex items-center justify-center">
+                          <div className="w-10 h-10 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-lg sm:rounded-xl shadow-lg flex items-center justify-center">
+                            <Gem className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
                           </div>
-                          <span className="absolute top-2 left-2 bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-semibold">Hot</span>
-                          <div className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-red-500 text-sm">♥</span>
+                          <span className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-amber-500 text-white text-[8px] sm:text-xs px-1 sm:px-2 py-0.5 rounded-full font-semibold">Hot</span>
+                          <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-5 h-5 sm:w-7 sm:h-7 bg-white/90 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-red-500 text-xs sm:text-sm">♥</span>
                           </div>
                         </div>
-                        <div className="p-3">
-                          <p className="text-xs text-gray-500 mb-1">Jewelry</p>
-                          <h5 className="text-sm font-semibold text-gray-800 mb-1 truncate">Diamond Pendant</h5>
-                          <div className="flex items-center mb-2">
-                            <div className="flex text-yellow-400 text-xs">★★★★★</div>
-                            <span className="text-xs text-gray-400 ml-1">(256)</span>
+                        <div className="p-2 sm:p-3">
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Jewelry</p>
+                          <h5 className="text-xs sm:text-sm font-semibold text-gray-800 mb-0.5 sm:mb-1 truncate">Diamond Pendant</h5>
+                          <div className="flex items-center mb-1 sm:mb-2">
+                            <div className="flex text-yellow-400 text-[10px] sm:text-xs">★★★★★</div>
+                            <span className="text-[10px] sm:text-xs text-gray-400 ml-1">(256)</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div>
-                              <span className="text-sm font-bold text-gray-900">₹4,999</span>
-                              <span className="text-xs text-gray-400 line-through ml-1">₹5,999</span>
+                              <span className="text-xs sm:text-sm font-bold text-gray-900">₹4,999</span>
+                              <span className="text-[10px] sm:text-xs text-gray-400 line-through ml-0.5 sm:ml-1">₹5,999</span>
                             </div>
-                            <button className="w-7 h-7 bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center justify-center transition-colors">
-                              <span className="text-white text-lg font-light">+</span>
+                            <button className="w-5 h-5 sm:w-7 sm:h-7 bg-emerald-600 hover:bg-emerald-700 rounded-md sm:rounded-lg flex items-center justify-center transition-colors">
+                              <span className="text-white text-sm sm:text-lg font-light">+</span>
                             </button>
                           </div>
                         </div>
@@ -1850,18 +1859,18 @@ const PlatformHome = () => {
                   </div>
 
                   {/* Categories Row */}
-                  <div className="flex items-center justify-center space-x-3 mb-4">
+                  <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-3 mb-3 sm:mb-4">
                     {[
-                      { name: 'Electronics', icon: <Smartphone className="w-4 h-4" />, color: 'from-blue-500 to-cyan-500' },
-                      { name: 'Fashion', icon: <ShoppingBag className="w-4 h-4" />, color: 'from-purple-500 to-pink-500' },
-                      { name: 'Jewelry', icon: <Gem className="w-4 h-4" />, color: 'from-amber-500 to-yellow-500' },
-                      { name: 'Home', icon: <Store className="w-4 h-4" />, color: 'from-emerald-500 to-teal-500' },
+                      { name: 'Electronics', icon: <Smartphone className="w-3 h-3 sm:w-4 sm:h-4" />, color: 'from-blue-500 to-cyan-500' },
+                      { name: 'Fashion', icon: <ShoppingBag className="w-3 h-3 sm:w-4 sm:h-4" />, color: 'from-purple-500 to-pink-500' },
+                      { name: 'Jewelry', icon: <Gem className="w-3 h-3 sm:w-4 sm:h-4" />, color: 'from-amber-500 to-yellow-500' },
+                      { name: 'Home', icon: <Store className="w-3 h-3 sm:w-4 sm:h-4" />, color: 'from-emerald-500 to-teal-500' },
                     ].map((cat) => (
-                      <div key={cat.name} className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-full cursor-pointer transition-colors border border-gray-200">
-                        <div className={`w-6 h-6 rounded-full bg-gradient-to-r ${cat.color} flex items-center justify-center text-white`}>
+                      <div key={cat.name} className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-50 hover:bg-gray-100 rounded-full cursor-pointer transition-colors border border-gray-200">
+                        <div className={`w-4 h-4 sm:w-6 sm:h-6 rounded-full bg-gradient-to-r ${cat.color} flex items-center justify-center text-white`}>
                           {cat.icon}
                         </div>
-                        <span className="text-xs font-medium text-gray-700">{cat.name}</span>
+                        <span className="text-[10px] sm:text-xs font-medium text-gray-700">{cat.name}</span>
                       </div>
                     ))}
                   </div>
@@ -1909,7 +1918,7 @@ const PlatformHome = () => {
       </section> */}
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
+      <section id="features" className="pb-20  bg-gradient-to-b from-white to-blue-50/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -1955,7 +1964,7 @@ const PlatformHome = () => {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
+      <section id="pricing" className="pb-20 bg-gradient-to-b from-white to-blue-50/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -2011,8 +2020,17 @@ const PlatformHome = () => {
                         <CardTitle className="text-3xl">{plan.name}</CardTitle>
                         <CardDescription className="text-base">{plan.description}</CardDescription>
                         <div className="mt-6">
-                          <span className="text-5xl font-bold">₹{plan.price}</span>
+                          <span className="text-5xl font-bold">
+                            {isIndia ? (
+                              <>₹{plan.price.toLocaleString('en-IN')}</>
+                            ) : (
+                              <>${plan.price_usd || Math.round(plan.price / 83)}</>
+                            )}
+                          </span>
                           <span className="text-gray-600 text-lg ml-2">{plan.period}</span>
+                          {!isIndia && (
+                            <p className="text-xs text-gray-500 mt-1">USD pricing for international users</p>
+                          )}
                         </div>
                       </CardHeader>
                       
@@ -2088,7 +2106,7 @@ const PlatformHome = () => {
       )}
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 bg-gradient-to-b from-blue-50/30 to-purple-50/30">
+      <section id="how-it-works" className="pb-20 bg-gradient-to-b from-blue-50/30 to-purple-50/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
