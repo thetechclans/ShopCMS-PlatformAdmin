@@ -1,3 +1,22 @@
+# Get Changes
+git diff --patch origin/Original_Code_v3-3..Development > changes.patch
+
+
+# Deploy Database Migrations
+supabase migration up --linked
+
+# Deploy Functions First
+supabase functions deploy tenant-signup --project-ref biofpmqafyjcemhffnus
+
+supabase functions deploy tenant-signup --project-ref default
+
+supabase db push --db-url "postgresql://postgres:Amira%402594@168.220.234.220:5433/postgres?sslmode=disable" --debug
+
+
+supabase db push --db-url "postgresql://postgres:Amira_2594@168.220.234.220:5433/postgres?sslmode=disable" --debug
+
+
+
 # ShopCMS Platform Admin – Project Overview
 
 ## High-Level Purpose
@@ -214,26 +233,3 @@ Together they form a small SaaS: the Platform Admin sells plans and configures d
 ---
 
 This README is meant as a high-level architecture and business-flow overview for the Platform Admin and its relationship with the Tenant app. For detailed implementation, consult the referenced file paths in each section.
-
-
-
-
-
-
-
-# Get Changes
-git diff --patch origin/Original_Code_v3-3..Development > changes.patch
-
-
-# Deploy Database Migrations
-supabase migration up --linked
-
-# Deploy Functions First
-supabase functions deploy tenant-signup --project-ref biofpmqafyjcemhffnus
-
-supabase functions deploy tenant-signup --project-ref default
-
-supabase db push --db-url "postgresql://postgres:Amira%402594@168.220.234.220:5433/postgres?sslmode=disable" --debug
-
-
-supabase db push --db-url "postgresql://postgres:Amira_2594@168.220.234.220:5433/postgres?sslmode=disable" --debug
