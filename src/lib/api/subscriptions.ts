@@ -5,6 +5,7 @@ export interface SubscriptionPlan {
   plan_type: 'basic' | 'silver' | 'gold';
   name: string;
   price: number;
+  price_usd: number | null;
   currency: string;
   period: string;
   description: string;
@@ -40,6 +41,7 @@ export interface CreateSubscriptionPlanInput {
 export interface UpdateSubscriptionPlanInput {
   name?: string;
   price?: number;
+  price_usd?: number | null;
   currency?: string;
   period?: string;
   description?: string;

@@ -65,10 +65,11 @@ export default function SubscriptionManagement() {
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
 
   // Form state
-  const [formData, setFormData] = useState<CreateSubscriptionPlanInput>({
+  const [formData, setFormData] = useState<CreateSubscriptionPlanInput & { price_usd?: number | null }>({
     plan_type: 'basic',
     name: '',
     price: 0,
+    price_usd: null,
     currency: 'INR',
     period: '/month',
     description: '',
@@ -120,6 +121,7 @@ export default function SubscriptionManagement() {
       plan_type: plan.plan_type,
       name: plan.name,
       price: plan.price,
+      price_usd: plan.price_usd,
       currency: plan.currency,
       period: plan.period,
       description: plan.description,
@@ -349,10 +351,17 @@ export default function SubscriptionManagement() {
                 </div>
                 <CardDescription>{plan.description}</CardDescription>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-gray-900">
-                    {plan.currency} {plan.price}
-                  </span>
-                  <span className="text-gray-600 ml-2">{plan.period}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-4xl font-bold text-gray-900">
+                      ₹{plan.price.toLocaleString('en-IN')}
+                    </span>
+                    {plan.price_usd && (
+                      <span className="text-xl font-semibold text-green-600">
+                        / ${plan.price_usd}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-gray-600">{plan.period}</span>
                 </div>
               </CardHeader>
 
@@ -553,18 +562,34 @@ export default function SubscriptionManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Price *</Label>
+                  <Label>Price (INR) *</Label>
                   <Input
                     type="number"
                     value={formData.price}
                     onChange={(e) =>
                       setFormData({ ...formData, price: parseFloat(e.target.value) })
                     }
+                    placeholder="e.g. 800"
                   />
                 </div>
 
+                <div>
+                  <Label>Price (USD) - International</Label>
+                  <Input
+                    type="number"
+                    value={formData.price_usd || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price_usd: e.target.value ? parseFloat(e.target.value) : null })
+                    }
+                    placeholder="e.g. 10"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">For users outside India</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Currency</Label>
                   <Input
