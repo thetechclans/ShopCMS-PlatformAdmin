@@ -41,10 +41,12 @@ const PlatformAnalytics = () => {
   const { data: tenantPlanCounts = [] } = useQuery({
     queryKey: ["platform-tenant-plan-counts"],
     queryFn: async () => {
+      const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from("tenant_limits")
         .select("tenant_id, plan_type, tenants!inner(status)")
-        .eq("tenants.status", "active");
+        .eq("tenants.status", "active")
+        .gt("subscription_expires_at", nowIso);
 
       if (error || !data) return [];
 
@@ -65,6 +67,25 @@ const PlatformAnalytics = () => {
         planType: plan as PlanType,
         count,
       }));
+    },
+  });
+
+  const { data: activeSubscriptionTenantCount = 0 } = useQuery({
+    queryKey: ["platform-active-subscription-tenant-count"],
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("tenant_limits")
+        .select("tenant_id, tenants!inner(status)")
+        .eq("tenants.status", "active")
+        .gt("subscription_expires_at", nowIso);
+
+      if (error || !data) {
+        console.error("Failed to load active subscription tenant count:", error);
+        return 0;
+      }
+
+      return new Set(data.map((row: any) => row.tenant_id)).size;
     },
   });
 
@@ -172,10 +193,10 @@ const PlatformAnalytics = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {toCount(kpis?.active_tenants).toLocaleString()}
+              {activeSubscriptionTenantCount.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              Tenants with at least one tracked event.
+              Active tenant subscriptions (not expired).
             </p>
           </CardContent>
         </Card>

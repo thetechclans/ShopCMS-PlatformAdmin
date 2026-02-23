@@ -817,6 +817,8 @@ export type Database = {
           max_products: number
           max_static_pages: number
           plan_type: string
+          subscription_expires_at: string
+          subscription_started_at: string
           tenant_id: string
           updated_at: string | null
         }
@@ -829,6 +831,8 @@ export type Database = {
           max_products?: number
           max_static_pages?: number
           plan_type?: string
+          subscription_expires_at?: string
+          subscription_started_at?: string
           tenant_id: string
           updated_at?: string | null
         }
@@ -841,6 +845,8 @@ export type Database = {
           max_products?: number
           max_static_pages?: number
           plan_type?: string
+          subscription_expires_at?: string
+          subscription_started_at?: string
           tenant_id?: string
           updated_at?: string | null
         }

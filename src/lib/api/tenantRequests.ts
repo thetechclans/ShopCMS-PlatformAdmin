@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { PLAN_DEFINITIONS, normalizePlanType } from "@/lib/plans";
 
 export interface TenantRequest {
   id: string;
@@ -167,12 +168,25 @@ export async function createTenantFromRequest(requestId: string): Promise<string
 
   if (tenantError) throw tenantError;
 
+  const normalizedPlanType = normalizePlanType(request.subscription_plan?.plan_type);
+  const selectedPreset = PLAN_DEFINITIONS[normalizedPlanType].defaultLimits;
+  const subscriptionStartedAt = new Date();
+  const subscriptionExpiresAt = new Date(subscriptionStartedAt);
+  subscriptionExpiresAt.setDate(subscriptionExpiresAt.getDate() + 30);
+
   // Create tenant limits based on the selected plan
   const { error: limitsError } = await supabase
     .from('tenant_limits')
     .insert({
       tenant_id: tenant.id,
-      plan_type: request.subscription_plan?.plan_type || 'basic',
+      plan_type: normalizedPlanType,
+      max_products: selectedPreset.maxProducts,
+      max_categories: selectedPreset.maxCategories,
+      max_carousel_slides: selectedPreset.maxCarouselSlides,
+      max_static_pages: selectedPreset.maxStaticPages,
+      max_image_size_mb: selectedPreset.maxImageSizeMb,
+      subscription_started_at: subscriptionStartedAt.toISOString(),
+      subscription_expires_at: subscriptionExpiresAt.toISOString(),
     });
 
   if (limitsError) throw limitsError;

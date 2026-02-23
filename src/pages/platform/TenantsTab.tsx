@@ -22,7 +22,20 @@ interface Tenant {
   status: string;
   created_at: string;
   plan_type?: string;
+  subscription_expires_at?: string | null;
 }
+
+const DEFAULT_SUBSCRIPTION_DAYS = 30;
+
+const getDefaultExpiryDate = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + DEFAULT_SUBSCRIPTION_DAYS);
+  return date.toISOString().slice(0, 10);
+};
+
+const toEndOfDayIso = (value: string) => new Date(`${value}T23:59:59`).toISOString();
+
+const isDateInPast = (value: string) => new Date(`${value}T23:59:59`).getTime() < Date.now();
 
 const TenantsTab = () => {
   const navigate = useNavigate();
@@ -36,12 +49,14 @@ const TenantsTab = () => {
     subdomain: string;
     status: string;
     plan_type: PlanType;
+    subscription_expires_at: string;
   }>({
     name: '',
     slug: '',
     subdomain: '',
     status: 'active',
-    plan_type: 'basic'
+    plan_type: 'basic',
+    subscription_expires_at: getDefaultExpiryDate(),
   });
 
   useEffect(() => {
@@ -60,12 +75,13 @@ const TenantsTab = () => {
       // Fetch plan types for all tenants
       const { data: limitsData } = await supabase
         .from('tenant_limits')
-        .select('tenant_id, plan_type');
+        .select('tenant_id, plan_type, subscription_expires_at');
 
       // Map plan types to tenants
       const tenantsWithPlans = tenantsData?.map(tenant => ({
         ...tenant,
-        plan_type: limitsData?.find(l => l.tenant_id === tenant.id)?.plan_type
+        plan_type: limitsData?.find(l => l.tenant_id === tenant.id)?.plan_type,
+        subscription_expires_at: limitsData?.find(l => l.tenant_id === tenant.id)?.subscription_expires_at,
       })) || [];
 
       setTenants(tenantsWithPlans);
@@ -95,6 +111,11 @@ const TenantsTab = () => {
         if (error) throw error;
         toast.success('Tenant updated successfully');
       } else {
+        if (isDateInPast(formData.subscription_expires_at)) {
+          toast.error("Subscription expiry must be today or a future date.");
+          return;
+        }
+
         // Create tenant
         const { data: newTenant, error: tenantError } = await supabase
           .from('tenants')
@@ -123,6 +144,8 @@ const TenantsTab = () => {
             max_carousel_slides: preset.maxCarouselSlides,
             max_static_pages: preset.maxStaticPages,
             max_image_size_mb: preset.maxImageSizeMb,
+            subscription_started_at: new Date().toISOString(),
+            subscription_expires_at: toEndOfDayIso(formData.subscription_expires_at),
           });
 
         if (limitsError) {
@@ -169,7 +192,10 @@ const TenantsTab = () => {
       slug: tenant.slug,
       subdomain: tenant.subdomain,
       status: tenant.status,
-      plan_type: tenant.plan_type || 'basic'
+      plan_type: tenant.plan_type || 'basic',
+      subscription_expires_at: tenant.subscription_expires_at
+        ? tenant.subscription_expires_at.slice(0, 10)
+        : getDefaultExpiryDate(),
     });
     setDialogOpen(true);
   };
@@ -181,7 +207,8 @@ const TenantsTab = () => {
       slug: '',
       subdomain: '',
       status: 'active',
-      plan_type: 'basic'
+      plan_type: 'basic',
+      subscription_expires_at: getDefaultExpiryDate(),
     });
   };
 
@@ -301,6 +328,27 @@ const TenantsTab = () => {
                     </Select>
                     <p className="text-sm text-muted-foreground mt-1">
                       Limits can be adjusted later in the Limits tab
+                    </p>
+                  </div>
+                )}
+                {!editingTenant && (
+                  <div>
+                    <Label htmlFor="subscription_expires_at">Subscription Expiry</Label>
+                    <Input
+                      id="subscription_expires_at"
+                      type="date"
+                      min={new Date().toISOString().slice(0, 10)}
+                      value={formData.subscription_expires_at}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          subscription_expires_at: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Default is {DEFAULT_SUBSCRIPTION_DAYS} days from today.
                     </p>
                   </div>
                 )}

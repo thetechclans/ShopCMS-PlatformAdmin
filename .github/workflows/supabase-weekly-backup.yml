@@ -1,0 +1,86 @@
+# name: Supabase Weekly Backup
+
+# on:
+#   schedule:
+#     - cron: "0 3 * * 0"
+#   workflow_dispatch:
+
+# jobs:
+#   backup:
+#     runs-on: ubuntu-latest
+#     timeout-minutes: 45
+#     env:
+#       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+#       BACKUP_DIR: artifacts/backups
+#       RETENTION_COUNT: 8
+#       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+#       BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+#       BACKUP_NOTIFICATION_WEBHOOK: ${{ secrets.BACKUP_NOTIFICATION_WEBHOOK }}
+
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
+
+#       - name: Install dependencies
+#         run: |
+#           sudo apt-get update
+#           sudo apt-get install -y postgresql-client zstd awscli jq
+
+#       - name: Run logical backup script
+#         id: backup
+#         run: |
+#           BACKUP_FILE="$(scripts/ops/backup_supabase_db.sh)"
+#           echo "backup_file=${BACKUP_FILE}" >> "$GITHUB_OUTPUT"
+#           echo "backup_name=$(basename "${BACKUP_FILE}")" >> "$GITHUB_OUTPUT"
+
+#       - name: Upload backup to S3
+#         run: |
+#           aws s3 cp \
+#             "${{ steps.backup.outputs.backup_file }}" \
+#             "s3://${BACKUP_S3_BUCKET}/${{ steps.backup.outputs.backup_name }}"
+
+#       - name: Apply S3 retention policy (keep 8 weekly backups)
+#         run: |
+#           mapfile -t keys < <(
+#             aws s3api list-objects-v2 \
+#               --bucket "${BACKUP_S3_BUCKET}" \
+#               --query 'sort_by(Contents,&LastModified)[].Key' \
+#               --output text
+#           )
+
+#           if (( ${#keys[@]} > 8 )); then
+#             for old_key in "${keys[@]:0:${#keys[@]}-8}"; do
+#               if [[ -n "${old_key}" && "${old_key}" != "None" ]]; then
+#                 aws s3 rm "s3://${BACKUP_S3_BUCKET}/${old_key}"
+#               fi
+#             done
+#           fi
+
+#       - name: Upload backup artifact to workflow run
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: supabase-backup-${{ github.run_id }}
+#           path: ${{ steps.backup.outputs.backup_file }}
+#           retention-days: 14
+
+#       - name: Notify on failure
+#         if: failure()
+#         run: |
+#           if [[ -z "${BACKUP_NOTIFICATION_WEBHOOK}" ]]; then
+#             echo "BACKUP_NOTIFICATION_WEBHOOK is not configured; skipping notification."
+#             exit 0
+#           fi
+
+#           payload=$(jq -n \
+#             --arg repo "${{ github.repository }}" \
+#             --arg run_id "${{ github.run_id }}" \
+#             --arg workflow "${{ github.workflow }}" \
+#             '{text: ("Supabase backup failed for " + $repo + " in workflow " + $workflow + " (run " + $run_id + ").")}'
+#           )
+
+#           curl -sS -X POST \
+#             -H "Content-Type: application/json" \
+#             -d "${payload}" \
+#             "${BACKUP_NOTIFICATION_WEBHOOK}"

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -41,6 +42,8 @@ interface TenantLimit {
   max_image_size_mb: number;
   max_carousel_slides: number;
   max_static_pages: number;
+  subscription_started_at: string;
+  subscription_expires_at: string;
 }
 
 interface Tenant {
@@ -48,6 +51,23 @@ interface Tenant {
   name: string;
   subdomain: string;
 }
+
+const DEFAULT_SUBSCRIPTION_DAYS = 30;
+
+const getDefaultExpiryDate = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + DEFAULT_SUBSCRIPTION_DAYS);
+  return date.toISOString().slice(0, 10);
+};
+
+const toEndOfDayIso = (value: string) => new Date(`${value}T23:59:59`).toISOString();
+
+const isDateInPast = (value: string) => new Date(`${value}T23:59:59`).getTime() < Date.now();
+
+const getDaysLeft = (expiresAt: string) => {
+  const delta = new Date(expiresAt).getTime() - Date.now();
+  return Math.ceil(delta / (1000 * 60 * 60 * 24));
+};
 
 const TenantLimitsTab = () => {
   const [open, setOpen] = useState(false);
@@ -58,6 +78,7 @@ const TenantLimitsTab = () => {
   const [maxImageSizeMb, setMaxImageSizeMb] = useState<number>(2.0);
   const [maxCarouselSlides, setMaxCarouselSlides] = useState<number>(3);
   const [maxStaticPages, setMaxStaticPages] = useState<number>(5);
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string>(getDefaultExpiryDate());
   const queryClient = useQueryClient();
 
   const { data: limitsWithTenants = [], isLoading } = useQuery({
@@ -108,6 +129,9 @@ const TenantLimitsTab = () => {
   const updateLimitMutation = useMutation({
     mutationFn: async () => {
       if (!selectedLimit) throw new Error("No limit selected");
+      if (isDateInPast(subscriptionExpiresAt)) {
+        throw new Error("Subscription expiry must be today or a future date.");
+      }
 
       const { error } = await supabase
         .from("tenant_limits")
@@ -118,6 +142,7 @@ const TenantLimitsTab = () => {
           max_image_size_mb: maxImageSizeMb,
           max_carousel_slides: maxCarouselSlides,
           max_static_pages: maxStaticPages,
+          subscription_expires_at: toEndOfDayIso(subscriptionExpiresAt),
         })
         .eq("id", selectedLimit.id);
 
@@ -149,6 +174,8 @@ const TenantLimitsTab = () => {
           max_carousel_slides: preset.maxCarouselSlides,
           max_static_pages: preset.maxStaticPages,
           max_image_size_mb: preset.maxImageSizeMb,
+          subscription_started_at: new Date().toISOString(),
+          subscription_expires_at: toEndOfDayIso(getDefaultExpiryDate()),
         });
 
       if (error) throw error;
@@ -171,11 +198,16 @@ const TenantLimitsTab = () => {
     setMaxImageSizeMb(limit.max_image_size_mb);
     setMaxCarouselSlides(limit.max_carousel_slides);
     setMaxStaticPages(limit.max_static_pages);
+    setSubscriptionExpiresAt(limit.subscription_expires_at.slice(0, 10));
     setOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isDateInPast(subscriptionExpiresAt)) {
+      toast.error("Subscription expiry must be today or a future date.");
+      return;
+    }
     updateLimitMutation.mutate();
   };
 
@@ -189,6 +221,7 @@ const TenantLimitsTab = () => {
     setMaxCarouselSlides(preset.maxCarouselSlides);
     setMaxStaticPages(preset.maxStaticPages);
     setMaxImageSizeMb(preset.maxImageSizeMb);
+    setSubscriptionExpiresAt(limit.subscription_expires_at.slice(0, 10));
     setOpen(true);
   };
 
@@ -241,24 +274,27 @@ const TenantLimitsTab = () => {
               <TableHead>Max Products</TableHead>
               <TableHead>Max Categories</TableHead>
               <TableHead>Image Size (MB)</TableHead>
+              <TableHead>Subscription Expires</TableHead>
+              <TableHead>Days Left</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={9} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : limitsWithTenants.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={9} className="text-center">
                   No tenant limits found
                 </TableCell>
               </TableRow>
             ) : (
               limitsWithTenants.map((limit: any) => (
+                // Use expiry delta to highlight accounts that need renewal immediately.
                 <TableRow key={limit.id}>
                   <TableCell className="font-medium">
                     {limit.tenant?.name || "Unknown"}
@@ -270,6 +306,20 @@ const TenantLimitsTab = () => {
                   <TableCell>{limit.max_products}</TableCell>
                   <TableCell>{limit.max_categories}</TableCell>
                   <TableCell>{limit.max_image_size_mb}</TableCell>
+                  <TableCell>
+                    {new Date(limit.subscription_expires_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {getDaysLeft(limit.subscription_expires_at) >= 0 ? (
+                      <Badge variant="secondary">
+                        {getDaysLeft(limit.subscription_expires_at)} day(s)
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">
+                        Expired {Math.abs(getDaysLeft(limit.subscription_expires_at))} day(s) ago
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       {limit.plan_type === 'basic' && (
@@ -385,6 +435,17 @@ const TenantLimitsTab = () => {
                   min="1"
                   value={maxStaticPages}
                   onChange={(e) => setMaxStaticPages(Number(e.target.value))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="subscriptionExpiry">Subscription Expiry</Label>
+                <Input
+                  id="subscriptionExpiry"
+                  type="date"
+                  min={new Date().toISOString().slice(0, 10)}
+                  value={subscriptionExpiresAt}
+                  onChange={(e) => setSubscriptionExpiresAt(e.target.value)}
                   required
                 />
               </div>
