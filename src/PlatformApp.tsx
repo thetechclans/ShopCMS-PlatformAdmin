@@ -10,6 +10,7 @@ import DomainsTab from "./pages/platform/DomainsTab";
 import UsersTab from "./pages/platform/UsersTab";
 import TenantLimitsTab from "./pages/platform/TenantLimitsTab";
 import PlatformAnalytics from "./pages/platform/PlatformAnalytics";
+import TenantSubscriptionsTab from "./pages/platform/TenantSubscriptionsTab";
 import { TemplateEditor } from "./pages/platform/TemplateEditor";
 import SubscriptionManagement from "./pages/admin/SubscriptionManagement";
 import TenantRequests from "./pages/admin/TenantRequests";
@@ -52,6 +53,7 @@ const PlatformApp = () => (
             <Route path="users" element={<UsersTab />} />
             <Route path="limits" element={<TenantLimitsTab />} />
             <Route path="analytics" element={<PlatformAnalytics />} />
+            <Route path="tenant-subscriptions" element={<TenantSubscriptionsTab />} />
             <Route path="templates/basic" element={<TemplateEditor planType="basic" />} />
             <Route path="templates/silver" element={<TemplateEditor planType="silver" />} />
             <Route path="templates/gold" element={<TemplateEditor planType="gold" />} />
