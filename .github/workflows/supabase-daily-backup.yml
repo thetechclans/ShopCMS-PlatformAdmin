@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client zstd awscli jq coreutils
+          sudo apt-get install -y postgresql-client zstd jq coreutils
 
       - name: Run logical backup script
         id: backup
@@ -51,6 +51,7 @@ jobs:
           echo "checksum_file=${CHECKSUM_FILE}" >> "$GITHUB_OUTPUT"
 
       - name: Upload backup to S3
+        if: ${{ env.BACKUP_S3_BUCKET != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: |
           aws s3 cp \
             "${{ steps.backup.outputs.backup_file }}" \
@@ -61,6 +62,7 @@ jobs:
             "s3://${BACKUP_S3_BUCKET}/${BACKUP_S3_PREFIX}/${{ steps.backup.outputs.backup_name }}.sha256"
 
       - name: Apply S3 retention policy (keep 35 daily backups)
+        if: ${{ env.BACKUP_S3_BUCKET != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: |
           mapfile -t backup_keys < <(
             aws s3api list-objects-v2 \

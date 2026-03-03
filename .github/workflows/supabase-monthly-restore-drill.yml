@@ -26,9 +26,16 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client zstd awscli jq coreutils
+          sudo apt-get install -y postgresql-client zstd jq coreutils
+
+      - name: Skip restore drill (missing required secrets)
+        if: ${{ env.BACKUP_S3_BUCKET == '' || env.AWS_ACCESS_KEY_ID == '' || env.AWS_SECRET_ACCESS_KEY == '' || env.AWS_DEFAULT_REGION == '' || env.STAGING_RESTORE_DB_URL == '' }}
+        run: |
+          echo "Skipping restore drill because one or more required secrets are missing." >> "$GITHUB_STEP_SUMMARY"
+          echo "Required: BACKUP_S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, STAGING_RESTORE_DB_URL" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download latest weekly backup from S3
+        if: ${{ env.BACKUP_S3_BUCKET != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && env.STAGING_RESTORE_DB_URL != '' }}
         id: backup
         run: |
           mkdir -p "${BACKUP_DIR}"
@@ -60,6 +67,7 @@ jobs:
           echo "backup_path=${BACKUP_PATH}" >> "$GITHUB_OUTPUT"
 
       - name: Verify downloaded backup integrity
+        if: ${{ env.BACKUP_S3_BUCKET != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && env.STAGING_RESTORE_DB_URL != '' }}
         run: |
           TMP_DUMP="$(mktemp /tmp/shopcms_restore_verify_XXXXXX.dump)"
           trap 'rm -f "${TMP_DUMP}"' EXIT
@@ -68,6 +76,7 @@ jobs:
           pg_restore --list "${TMP_DUMP}" > /dev/null
 
       - name: Restore backup into staging database
+        if: ${{ env.BACKUP_S3_BUCKET != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && env.STAGING_RESTORE_DB_URL != '' }}
         run: |
           if [[ -z "${STAGING_RESTORE_DB_URL}" ]]; then
             echo "STAGING_RESTORE_DB_URL is not configured"
@@ -78,6 +87,7 @@ jobs:
             bash scripts/ops/restore_supabase_db.sh "${{ steps.backup.outputs.backup_path }}" | tee "${BACKUP_DIR}/restore-drill.log"
 
       - name: Build restore drill report
+        if: ${{ env.BACKUP_S3_BUCKET != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && env.STAGING_RESTORE_DB_URL != '' }}
         run: |
           REPORT_PATH="${BACKUP_DIR}/restore-drill-report.md"
 
