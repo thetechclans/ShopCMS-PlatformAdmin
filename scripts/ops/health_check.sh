@@ -209,6 +209,7 @@ add_issue() {
 }
 
 db_ok=true
+db_connectivity_ok=true
 db_error=""
 db_connect_ms=0
 db_business_ms=0
@@ -222,6 +223,7 @@ if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -Atc "SELECT 1;" >/dev/null 2>&1; 
 else
   db_connect_ms="$(( ( $(date +%s%N) - start_ns ) / 1000000 ))"
   db_ok=false
+  db_connectivity_ok=false
   db_error="Database connectivity failed"
   add_issue "critical" "db_connectivity_failed" "$db_error"
 fi
@@ -340,14 +342,21 @@ ORDER BY 2, 3;
 "
   fi
 
+  targets_error_file="$(mktemp)"
   if ! psql "$SUPABASE_DB_URL" \
     -v ON_ERROR_STOP=1 \
     -v platform_base_domain="$PLATFORM_BASE_DOMAIN" \
     -F $'\t' \
-    -Atc "$targets_sql" > "$targets_file" 2>/dev/null; then
+    -Atc "$targets_sql" > "$targets_file" 2>"$targets_error_file"; then
     db_ok=false
-    add_issue "critical" "tenant_targets_query_failed" "Failed to fetch tenant targets"
+    targets_error="$(tr '\n' ' ' <"$targets_error_file" | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')"
+    if [[ -n "$targets_error" ]]; then
+      add_issue "critical" "tenant_targets_query_failed" "Failed to fetch tenant targets: ${targets_error}"
+    else
+      add_issue "critical" "tenant_targets_query_failed" "Failed to fetch tenant targets"
+    fi
   fi
+  rm -f "$targets_error_file"
 fi
 
 declare -A seen=()
@@ -519,7 +528,7 @@ jq -n \
   --arg overall_status "$overall" \
   --arg platform_base_domain "$PLATFORM_BASE_DOMAIN" \
   --arg db_error "$db_error" \
-  --argjson db_ok "$db_ok" \
+  --argjson db_ok "$db_connectivity_ok" \
   --argjson db_connect_latency_ms "$db_connect_ms" \
   --argjson db_business_latency_ms "$db_business_ms" \
   --argjson active_tenants_total "$active_tenants_total" \
@@ -584,7 +593,7 @@ jq -n \
   echo
   echo "## Database"
   echo
-  echo "- Connectivity: **${db_ok}**"
+  echo "- Connectivity: **${db_connectivity_ok}**"
   echo "- Connect latency: **${db_connect_ms} ms**"
   echo "- Business query latency: **${db_business_ms} ms**"
   echo "- Active tenants total: **${active_tenants_total}**"

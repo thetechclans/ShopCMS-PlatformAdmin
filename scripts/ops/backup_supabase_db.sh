@@ -36,7 +36,7 @@ fi
 
 mkdir -p "${BACKUP_DIR}"
 
-echo "Creating logical backup at ${RAW_BACKUP_PATH}"
+echo "Creating logical backup at ${RAW_BACKUP_PATH}" >&2
 "${PG_DUMP_BIN}" \
   --dbname="${SUPABASE_DB_URL}" \
   --format=custom \
@@ -48,13 +48,13 @@ echo "Creating logical backup at ${RAW_BACKUP_PATH}"
   --schema=graphql_public \
   --file="${RAW_BACKUP_PATH}"
 
-echo "Compressing backup with zstd"
+echo "Compressing backup with zstd" >&2
 zstd --quiet --threads=0 --rm "${RAW_BACKUP_PATH}" -o "${COMPRESSED_BACKUP_PATH}"
 
 mapfile -t existing_backups < <(ls -1t "${BACKUP_DIR}"/shopcms_db_*.dump.zst 2>/dev/null || true)
 
 if (( ${#existing_backups[@]} > RETENTION_COUNT )); then
-  echo "Applying local retention policy: keep ${RETENTION_COUNT} backup(s)"
+  echo "Applying local retention policy: keep ${RETENTION_COUNT} backup(s)" >&2
   for old_backup in "${existing_backups[@]:RETENTION_COUNT}"; do
     rm -f "${old_backup}"
   done
