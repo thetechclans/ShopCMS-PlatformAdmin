@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client zstd jq coreutils
+          sudo apt-get install -y postgresql-client-17 zstd jq coreutils
 
       - name: Skip restore drill (missing required secrets)
         if: ${{ env.BACKUP_S3_BUCKET == '' || env.AWS_ACCESS_KEY_ID == '' || env.AWS_SECRET_ACCESS_KEY == '' || env.AWS_DEFAULT_REGION == '' || env.STAGING_RESTORE_DB_URL == '' }}
