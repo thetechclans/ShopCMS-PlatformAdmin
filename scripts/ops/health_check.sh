@@ -442,9 +442,18 @@ if [[ "$db_ok" == true ]]; then
     fi
 
     url="https://${host}/"
-    IFS=$'\t' read -r ok http_status connect_ms ttfb_ms total_ms remote_ip err < <(
-      probe_url "$url" "$HTTP_RETRIES" "$HTTP_CONNECT_TIMEOUT_SECONDS" "$HTTP_TIMEOUT_SECONDS"
-    )
+    probe_row="$({ probe_url "$url" "$HTTP_RETRIES" "$HTTP_CONNECT_TIMEOUT_SECONDS" "$HTTP_TIMEOUT_SECONDS"; } || true)"
+    IFS=$'\t' read -r ok http_status connect_ms ttfb_ms total_ms remote_ip err <<< "$probe_row" || true
+
+    ok="${ok:-false}"
+    http_status="${http_status:-0}"
+    connect_ms="${connect_ms:-0}"
+    ttfb_ms="${ttfb_ms:-0}"
+    total_ms="${total_ms:-0}"
+    remote_ip="${remote_ip:-}"
+    if [[ -z "${err:-}" && "$ok" != "true" ]]; then
+      err="probe_no_output"
+    fi
 
     if [[ "$ok" == "true" ]]; then
       passed_targets=$((passed_targets + 1))
