@@ -42,6 +42,16 @@ jobs:
             echo "json_path=${REPORT_PATH%.md}.json" >> "$GITHUB_OUTPUT"
           fi
 
+          if [[ -n "${REPORT_PATH}" && ! -f "${REPORT_PATH}" ]]; then
+            echo "Expected report file not found at ${REPORT_PATH}"
+          fi
+
+          if [[ -d "${ARTIFACTS_DIR}" ]]; then
+            ls -la "${ARTIFACTS_DIR}"
+          else
+            echo "Artifacts directory ${ARTIFACTS_DIR} does not exist"
+          fi
+
           exit "$EXIT_CODE"
 
       - name: Append report summary to workflow summary
@@ -58,7 +68,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: health-daily-${{ github.run_id }}
-          path: artifacts/health/
+          path: |
+            ${{ steps.health.outputs.report_path }}
+            ${{ steps.health.outputs.json_path }}
           retention-days: 14
 
       - name: Notify on failure
