@@ -8,6 +8,8 @@ fi
 
 : "${SUPABASE_DB_URL:?SUPABASE_DB_URL is required}"
 
+PG_DUMP_BIN="${PG_DUMP_BIN:-pg_dump}"
+
 BACKUP_DIR="${BACKUP_DIR:-artifacts/backups}"
 RETENTION_COUNT="${RETENTION_COUNT:-8}"
 TIMESTAMP_UTC="$(date -u +%Y%m%d_%H%M)"
@@ -15,18 +17,27 @@ BACKUP_BASENAME="shopcms_db_${TIMESTAMP_UTC}.dump"
 RAW_BACKUP_PATH="${BACKUP_DIR}/${BACKUP_BASENAME}"
 COMPRESSED_BACKUP_PATH="${RAW_BACKUP_PATH}.zst"
 
-required_bins=(pg_dump zstd)
-for bin in "${required_bins[@]}"; do
-  if ! command -v "${bin}" >/dev/null 2>&1; then
-    echo "Missing required command: ${bin}" >&2
+if [[ "${PG_DUMP_BIN}" == */* ]]; then
+  if [[ ! -x "${PG_DUMP_BIN}" ]]; then
+    echo "Missing required executable: ${PG_DUMP_BIN}" >&2
     exit 1
   fi
-done
+else
+  if ! command -v "${PG_DUMP_BIN}" >/dev/null 2>&1; then
+    echo "Missing required command: ${PG_DUMP_BIN}" >&2
+    exit 1
+  fi
+fi
+
+if ! command -v zstd >/dev/null 2>&1; then
+  echo "Missing required command: zstd" >&2
+  exit 1
+fi
 
 mkdir -p "${BACKUP_DIR}"
 
 echo "Creating logical backup at ${RAW_BACKUP_PATH}"
-pg_dump \
+"${PG_DUMP_BIN}" \
   --dbname="${SUPABASE_DB_URL}" \
   --format=custom \
   --no-owner \

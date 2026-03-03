@@ -12,6 +12,8 @@ jobs:
     env:
       BACKUP_DIR: artifacts/backups
       BACKUP_S3_PREFIX: weekly
+      PG_RESTORE_BIN: /usr/lib/postgresql/17/bin/pg_restore
+      PSQL_BIN: /usr/lib/postgresql/17/bin/psql
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -38,6 +40,8 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo $VERSION_CODENAME)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
+          ${PG_RESTORE_BIN} --version
+          ${PSQL_BIN} --version
 
       - name: Download latest weekly backup from S3
         if: ${{ env.BACKUP_S3_BUCKET != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' && env.STAGING_RESTORE_DB_URL != '' }}
