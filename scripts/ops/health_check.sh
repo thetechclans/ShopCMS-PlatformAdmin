@@ -224,15 +224,22 @@ active_subscribed_tenants=0
 verified_domains_total=0
 
 start_ns="$(date +%s%N)"
-if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -Atc "SELECT 1;" >/dev/null 2>&1; then
+connect_error_file="$(mktemp)"
+if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -Atc "SELECT 1;" >/dev/null 2>"$connect_error_file"; then
   db_connect_ms="$(( ( $(date +%s%N) - start_ns ) / 1000000 ))"
 else
   db_connect_ms="$(( ( $(date +%s%N) - start_ns ) / 1000000 ))"
   db_ok=false
   db_connectivity_ok=false
-  db_error="Database connectivity failed"
+  connect_error="$(tr '\n' ' ' <"$connect_error_file" | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')"
+  if [[ -n "$connect_error" ]]; then
+    db_error="Database connectivity failed: ${connect_error}"
+  else
+    db_error="Database connectivity failed"
+  fi
   add_issue "critical" "db_connectivity_failed" "$db_error"
 fi
+rm -f "$connect_error_file"
 
 if [[ "$db_ok" == true ]]; then
   business_sql="
@@ -250,15 +257,22 @@ SELECT
 "
 
   start_ns="$(date +%s%N)"
-  if row="$(psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -F $'\t' -Atc "$business_sql" 2>/dev/null)"; then
+  business_error_file="$(mktemp)"
+  if row="$(psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -F $'\t' -Atc "$business_sql" 2>"$business_error_file")"; then
     db_business_ms="$(( ( $(date +%s%N) - start_ns ) / 1000000 ))"
     IFS=$'\t' read -r active_tenants_total active_subscribed_tenants verified_domains_total <<< "$row"
   else
     db_business_ms="$(( ( $(date +%s%N) - start_ns ) / 1000000 ))"
     db_ok=false
-    db_error="Database business health query failed"
+    business_error="$(tr '\n' ' ' <"$business_error_file" | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')"
+    if [[ -n "$business_error" ]]; then
+      db_error="Database business health query failed: ${business_error}"
+    else
+      db_error="Database business health query failed"
+    fi
     add_issue "critical" "db_business_query_failed" "$db_error"
   fi
+  rm -f "$business_error_file"
 fi
 
 if [[ "$db_ok" == true ]]; then
