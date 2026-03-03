@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${HEALTH_DEBUG:-0}" == "1" ]]; then
+  set -x
+  trap 'echo "[health-check] Error at line ${LINENO}" >&2' ERR
+fi
+
 usage() {
   cat <<'EOF'
 Usage:

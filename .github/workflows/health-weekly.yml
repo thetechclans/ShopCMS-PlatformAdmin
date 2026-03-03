@@ -21,6 +21,7 @@ jobs:
       HEALTH_LATENCY_CRITICAL_MS: 5000
       TLS_WARN_DAYS: 30
       TLS_CRITICAL_DAYS: 14
+      HEALTH_DEBUG: 1
 
     steps:
       - name: Checkout repository
