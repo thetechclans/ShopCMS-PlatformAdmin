@@ -15,6 +15,7 @@ jobs:
       RETENTION_COUNT: 35
       BACKUP_S3_PREFIX: daily
       PG_DUMP_BIN: /usr/lib/postgresql/17/bin/pg_dump
+      PG_RESTORE_BIN: /usr/lib/postgresql/17/bin/pg_restore
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -49,7 +50,7 @@ jobs:
           trap 'rm -f "${TMP_DUMP}"' EXIT
 
           zstd --quiet --decompress --stdout "${{ steps.backup.outputs.backup_file }}" > "${TMP_DUMP}"
-          pg_restore --list "${TMP_DUMP}" > /dev/null
+          ${PG_RESTORE_BIN} --list "${TMP_DUMP}" > /dev/null
 
           CHECKSUM_FILE="${{ steps.backup.outputs.backup_file }}.sha256"
           (cd "$(dirname "${{ steps.backup.outputs.backup_file }}")" && sha256sum "$(basename "${{ steps.backup.outputs.backup_file }}")") > "${CHECKSUM_FILE}"
