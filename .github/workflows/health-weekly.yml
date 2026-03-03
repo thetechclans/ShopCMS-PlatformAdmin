@@ -1,0 +1,84 @@
+name: Health Check Weekly
+
+on:
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+
+jobs:
+  health-weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      PLATFORM_BASE_DOMAIN: ${{ secrets.PLATFORM_BASE_DOMAIN }}
+      HEALTH_NOTIFICATION_WEBHOOK: ${{ secrets.HEALTH_NOTIFICATION_WEBHOOK }}
+      ARTIFACTS_DIR: artifacts/health
+      HTTP_TIMEOUT_SECONDS: 20
+      HTTP_CONNECT_TIMEOUT_SECONDS: 6
+      HTTP_RETRIES: 2
+      HEALTH_LATENCY_WARN_MS: 2500
+      HEALTH_LATENCY_CRITICAL_MS: 5000
+      TLS_WARN_DAYS: 30
+      TLS_CRITICAL_DAYS: 14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client jq curl dnsutils openssl coreutils
+
+      - name: Run weekly health checks
+        id: health
+        run: |
+          set +e
+          REPORT_PATH="$(bash scripts/ops/health_check.sh --mode weekly)"
+          EXIT_CODE=$?
+          set -e
+
+          echo "report_path=${REPORT_PATH}" >> "$GITHUB_OUTPUT"
+          if [[ -n "${REPORT_PATH}" ]]; then
+            echo "json_path=${REPORT_PATH%.md}.json" >> "$GITHUB_OUTPUT"
+          fi
+
+          exit "$EXIT_CODE"
+
+      - name: Append report summary to workflow summary
+        if: always()
+        run: |
+          if [[ -n "${{ steps.health.outputs.report_path }}" && -f "${{ steps.health.outputs.report_path }}" ]]; then
+            cat "${{ steps.health.outputs.report_path }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Weekly health report was not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload health report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-weekly-${{ github.run_id }}
+          path: artifacts/health/
+          retention-days: 30
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          if [[ -z "${HEALTH_NOTIFICATION_WEBHOOK}" ]]; then
+            echo "HEALTH_NOTIFICATION_WEBHOOK is not configured; skipping notification."
+            exit 0
+          fi
+
+          payload=$(jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg workflow "${{ github.workflow }}" \
+            '{text: ("Weekly health check failed for " + $repo + " in workflow " + $workflow + " (run " + $run_id + ").")}'
+          )
+
+          curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            -d "${payload}" \
+            "${HEALTH_NOTIFICATION_WEBHOOK}"
