@@ -147,6 +147,7 @@ fi
 
 : "${SUPABASE_DB_URL:?SUPABASE_DB_URL is required}"
 PLATFORM_BASE_DOMAIN="${PLATFORM_BASE_DOMAIN:-}"
+PLATFORM_BASE_DOMAIN_SQL="${PLATFORM_BASE_DOMAIN//\'/\'\'}"
 
 required_bins=(psql jq curl awk sort sed mktemp date)
 if [[ "$MODE" == "weekly" ]]; then
@@ -286,8 +287,8 @@ SELECT
     p.domain,
     CASE
       WHEN COALESCE(NULLIF(TRIM(a.subdomain), ''), '') <> ''
-       AND :'platform_base_domain' <> ''
-      THEN a.subdomain || '.' || :'platform_base_domain'
+       AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
+      THEN a.subdomain || '.' || '${PLATFORM_BASE_DOMAIN_SQL}'
       ELSE NULL
     END
   ) AS host,
@@ -300,7 +301,7 @@ SELECT
     ) THEN 'primary_verified_domain'
     WHEN p.domain IS NOT NULL THEN 'verified_domain'
     WHEN COALESCE(NULLIF(TRIM(a.subdomain), ''), '') <> ''
-       AND :'platform_base_domain' <> ''
+       AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
     THEN 'subdomain_fallback'
     ELSE 'unresolved'
   END AS source,
@@ -331,8 +332,8 @@ SELECT
   a.name,
   CASE
     WHEN COALESCE(NULLIF(TRIM(a.subdomain), ''), '') <> ''
-     AND :'platform_base_domain' <> ''
-    THEN a.subdomain || '.' || :'platform_base_domain'
+     AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
+    THEN a.subdomain || '.' || '${PLATFORM_BASE_DOMAIN_SQL}'
     ELSE NULL
   END AS host,
   'subdomain_fallback' AS source,
@@ -345,7 +346,6 @@ ORDER BY 2, 3;
   targets_error_file="$(mktemp)"
   if ! psql "$SUPABASE_DB_URL" \
     -v ON_ERROR_STOP=1 \
-    -v platform_base_domain="$PLATFORM_BASE_DOMAIN" \
     -F $'\t' \
     -Atc "$targets_sql" > "$targets_file" 2>"$targets_error_file"; then
     db_ok=false
