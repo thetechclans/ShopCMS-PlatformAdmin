@@ -1,0 +1,131 @@
+name: Supabase Monthly Restore Drill
+
+on:
+  schedule:
+    - cron: "0 5 1 * *"
+  workflow_dispatch:
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BACKUP_DIR: artifacts/backups
+      BACKUP_S3_PREFIX: weekly
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+      STAGING_RESTORE_DB_URL: ${{ secrets.STAGING_RESTORE_DB_URL }}
+      BACKUP_NOTIFICATION_WEBHOOK: ${{ secrets.BACKUP_NOTIFICATION_WEBHOOK }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client zstd awscli jq coreutils
+
+      - name: Download latest weekly backup from S3
+        id: backup
+        run: |
+          mkdir -p "${BACKUP_DIR}"
+
+          LATEST_KEY="$(aws s3api list-objects-v2 \
+            --bucket "${BACKUP_S3_BUCKET}" \
+            --prefix "${BACKUP_S3_PREFIX}/" \
+            --query 'reverse(sort_by(Contents,&LastModified))[0].Key' \
+            --output text)"
+
+          if [[ -z "${LATEST_KEY}" || "${LATEST_KEY}" == "None" ]]; then
+            echo "No weekly backups found in s3://${BACKUP_S3_BUCKET}/${BACKUP_S3_PREFIX}/"
+            exit 1
+          fi
+
+          BACKUP_PATH="${BACKUP_DIR}/$(basename "${LATEST_KEY}")"
+          aws s3 cp "s3://${BACKUP_S3_BUCKET}/${LATEST_KEY}" "${BACKUP_PATH}"
+
+          CHECKSUM_KEY="${LATEST_KEY}.sha256"
+          CHECKSUM_PATH="${BACKUP_PATH}.sha256"
+          if aws s3 ls "s3://${BACKUP_S3_BUCKET}/${CHECKSUM_KEY}" >/dev/null 2>&1; then
+            aws s3 cp "s3://${BACKUP_S3_BUCKET}/${CHECKSUM_KEY}" "${CHECKSUM_PATH}"
+            (cd "${BACKUP_DIR}" && sha256sum --check "$(basename "${CHECKSUM_PATH}")")
+          else
+            echo "Checksum file not found in S3, continuing without checksum validation."
+          fi
+
+          echo "backup_key=${LATEST_KEY}" >> "$GITHUB_OUTPUT"
+          echo "backup_path=${BACKUP_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify downloaded backup integrity
+        run: |
+          TMP_DUMP="$(mktemp /tmp/shopcms_restore_verify_XXXXXX.dump)"
+          trap 'rm -f "${TMP_DUMP}"' EXIT
+
+          zstd --quiet --decompress --stdout "${{ steps.backup.outputs.backup_path }}" > "${TMP_DUMP}"
+          pg_restore --list "${TMP_DUMP}" > /dev/null
+
+      - name: Restore backup into staging database
+        run: |
+          if [[ -z "${STAGING_RESTORE_DB_URL}" ]]; then
+            echo "STAGING_RESTORE_DB_URL is not configured"
+            exit 1
+          fi
+
+          RESTORE_DB_URL="${STAGING_RESTORE_DB_URL}" \
+            bash scripts/ops/restore_supabase_db.sh "${{ steps.backup.outputs.backup_path }}" | tee "${BACKUP_DIR}/restore-drill.log"
+
+      - name: Build restore drill report
+        run: |
+          REPORT_PATH="${BACKUP_DIR}/restore-drill-report.md"
+
+          {
+            echo "# Supabase Monthly Restore Drill"
+            echo
+            echo "- Date (UTC): $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "- Backup key: \`${{ steps.backup.outputs.backup_key }}\`"
+            echo "- Restore target: staging database"
+            echo
+            echo "## Smoke Check Row Counts"
+            echo
+            echo "| Table | Row Count |"
+            echo "|---|---:|"
+            for table_name in tenants tenant_limits profiles user_roles tenant_requests; do
+              row_count="$(psql "${STAGING_RESTORE_DB_URL}" -tAc "SELECT COUNT(*) FROM public.${table_name};")"
+              echo "| ${table_name} | ${row_count:-0} |"
+            done
+            echo
+            echo "Restore drill completed successfully."
+          } > "${REPORT_PATH}"
+
+          cat "${REPORT_PATH}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload restore drill artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-monthly-restore-drill-${{ github.run_id }}
+          path: artifacts/backups/
+          retention-days: 30
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          if [[ -z "${BACKUP_NOTIFICATION_WEBHOOK}" ]]; then
+            echo "BACKUP_NOTIFICATION_WEBHOOK is not configured; skipping notification."
+            exit 0
+          fi
+
+          payload=$(jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg workflow "${{ github.workflow }}" \
+            '{text: ("Supabase monthly restore drill failed for " + $repo + " in workflow " + $workflow + " (run " + $run_id + ").")}'
+          )
+
+          curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            -d "${payload}" \
+            "${BACKUP_NOTIFICATION_WEBHOOK}"
