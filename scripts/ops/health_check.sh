@@ -266,7 +266,7 @@ WITH active_subscribed AS (
     td.tenant_id, td.domain, td.is_primary
   FROM public.tenant_domains td
   WHERE td.is_verified = true
-  ORDER BY td.tenant_id, td.is_primary DESC, td.updated_at DESC NULLS LAST, td.created_at DESC NULLS LAST
+  ORDER BY td.tenant_id, td.is_primary DESC, td.created_at DESC NULLS LAST
 )
 SELECT
   a.id,
@@ -278,7 +278,7 @@ SELECT
       WHERE td.tenant_id=a.id
         AND td.is_verified=true
         AND td.is_primary=true
-      ORDER BY td.updated_at DESC NULLS LAST, td.created_at DESC NULLS LAST
+      ORDER BY td.created_at DESC NULLS LAST
       LIMIT 1
     ),
     p.domain,
