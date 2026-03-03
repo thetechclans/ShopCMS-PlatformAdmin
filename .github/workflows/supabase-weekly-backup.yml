@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client zstd jq coreutils
+          sudo apt-get install -y postgresql-client-17 zstd jq coreutils
 
       - name: Run logical backup script
         id: backup
