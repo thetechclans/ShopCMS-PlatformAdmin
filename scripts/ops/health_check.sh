@@ -465,7 +465,7 @@ if [[ "$db_ok" == true ]]; then
       --arg mode "$MODE" \
       --arg subscription_expires_at "$subscription_expires_at" \
       --argjson success "$ok" \
-      --argjson http_status "$http_status" \
+      --arg http_status "$http_status" \
       --argjson connect_ms "$connect_ms" \
       --argjson ttfb_ms "$ttfb_ms" \
       --argjson total_ms "$total_ms" \
@@ -483,7 +483,7 @@ if [[ "$db_ok" == true ]]; then
         mode:$mode,
         subscription_expires_at:$subscription_expires_at,
         success:$success,
-        http_status:$http_status,
+        http_status:(if ($http_status|test("^[0-9]+$")) then ($http_status|tonumber) else null end),
         connect_ms:$connect_ms,
         ttfb_ms:$ttfb_ms,
         total_ms:$total_ms,
