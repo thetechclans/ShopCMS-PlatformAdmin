@@ -19,6 +19,7 @@ jobs:
       HTTP_RETRIES: 2
       HEALTH_LATENCY_WARN_MS: 2500
       HEALTH_LATENCY_CRITICAL_MS: 5000
+      HEALTH_DEBUG: 1
 
     steps:
       - name: Checkout repository
