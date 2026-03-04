@@ -306,8 +306,9 @@ SELECT
     p.domain,
     CASE
       WHEN COALESCE(NULLIF(TRIM(a.subdomain), ''), '') <> ''
+       AND COALESCE(NULLIF(TRIM(a.subdomain), ''), '') ~ '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
        AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
-      THEN a.subdomain || '.' || '${PLATFORM_BASE_DOMAIN_SQL}'
+      THEN LOWER(TRIM(a.subdomain)) || '.' || '${PLATFORM_BASE_DOMAIN_SQL}'
       ELSE NULL
     END
   ) AS host,
@@ -320,6 +321,7 @@ SELECT
     ) THEN 'primary_verified_domain'
     WHEN p.domain IS NOT NULL THEN 'verified_domain'
     WHEN COALESCE(NULLIF(TRIM(a.subdomain), ''), '') <> ''
+       AND COALESCE(NULLIF(TRIM(a.subdomain), ''), '') ~ '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
        AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
     THEN 'subdomain_fallback'
     ELSE 'unresolved'
@@ -336,28 +338,49 @@ WITH active_subscribed AS (
   FROM public.tenants t
   JOIN public.tenant_limits l ON l.tenant_id = t.id
   WHERE t.status='active' AND l.subscription_expires_at > NOW()
+), verified_domains AS (
+  SELECT td.tenant_id, td.domain, td.is_primary
+  FROM public.tenant_domains td
+  WHERE td.is_verified=true
+), verified_counts AS (
+  SELECT tenant_id, COUNT(*) AS verified_count
+  FROM verified_domains
+  GROUP BY tenant_id
 )
 SELECT
   a.id,
   a.name,
-  td.domain AS host,
-  CASE WHEN td.is_primary THEN 'primary_verified_domain' ELSE 'verified_domain' END AS source,
+  vd.domain AS host,
+  CASE WHEN vd.is_primary THEN 'primary_verified_domain' ELSE 'verified_domain' END AS source,
   a.subscription_expires_at
 FROM active_subscribed a
-JOIN public.tenant_domains td ON td.tenant_id=a.id AND td.is_verified=true
+JOIN verified_domains vd ON vd.tenant_id=a.id
 UNION ALL
 SELECT
   a.id,
   a.name,
-  CASE
-    WHEN COALESCE(NULLIF(TRIM(a.subdomain), ''), '') <> ''
-     AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
-    THEN a.subdomain || '.' || '${PLATFORM_BASE_DOMAIN_SQL}'
-    ELSE NULL
-  END AS host,
+  LOWER(TRIM(a.subdomain)) || '.' || '${PLATFORM_BASE_DOMAIN_SQL}' AS host,
   'subdomain_fallback' AS source,
   a.subscription_expires_at
 FROM active_subscribed a
+LEFT JOIN verified_counts vc ON vc.tenant_id=a.id
+WHERE COALESCE(vc.verified_count, 0)=0
+  AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
+  AND COALESCE(NULLIF(TRIM(a.subdomain), ''), '') ~ '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
+UNION ALL
+SELECT
+  a.id,
+  a.name,
+  NULL AS host,
+  'unresolved' AS source,
+  a.subscription_expires_at
+FROM active_subscribed a
+LEFT JOIN verified_counts vc ON vc.tenant_id=a.id
+WHERE COALESCE(vc.verified_count, 0)=0
+  AND (
+    '${PLATFORM_BASE_DOMAIN_SQL}' = ''
+    OR COALESCE(NULLIF(TRIM(a.subdomain), ''), '') !~ '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
+  )
 ORDER BY 2, 3;
 "
   fi
