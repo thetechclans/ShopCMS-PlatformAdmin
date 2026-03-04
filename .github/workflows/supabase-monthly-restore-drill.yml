@@ -18,6 +18,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+      S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+      S3_FORCE_PATH_STYLE: ${{ secrets.S3_FORCE_PATH_STYLE }}
       STAGING_RESTORE_DB_URL: ${{ secrets.STAGING_RESTORE_DB_URL }}
       BACKUP_NOTIFICATION_WEBHOOK: ${{ secrets.BACKUP_NOTIFICATION_WEBHOOK }}
 
@@ -49,7 +51,15 @@ jobs:
         run: |
           mkdir -p "${BACKUP_DIR}"
 
-          LATEST_KEY="$(aws s3api list-objects-v2 \
+          AWS_ARGS=()
+          if [[ -n "${S3_ENDPOINT_URL}" ]]; then
+            AWS_ARGS+=(--endpoint-url "${S3_ENDPOINT_URL}")
+          fi
+          if [[ "${S3_FORCE_PATH_STYLE,,}" == "true" ]]; then
+            aws configure set default.s3.addressing_style path
+          fi
+
+          LATEST_KEY="$(aws "${AWS_ARGS[@]}" s3api list-objects-v2 \
             --bucket "${BACKUP_S3_BUCKET}" \
             --prefix "${BACKUP_S3_PREFIX}/" \
             --query 'reverse(sort_by(Contents,&LastModified))[0].Key' \
@@ -61,12 +71,12 @@ jobs:
           fi
 
           BACKUP_PATH="${BACKUP_DIR}/$(basename "${LATEST_KEY}")"
-          aws s3 cp "s3://${BACKUP_S3_BUCKET}/${LATEST_KEY}" "${BACKUP_PATH}"
+          aws "${AWS_ARGS[@]}" s3 cp "s3://${BACKUP_S3_BUCKET}/${LATEST_KEY}" "${BACKUP_PATH}"
 
           CHECKSUM_KEY="${LATEST_KEY}.sha256"
           CHECKSUM_PATH="${BACKUP_PATH}.sha256"
-          if aws s3 ls "s3://${BACKUP_S3_BUCKET}/${CHECKSUM_KEY}" >/dev/null 2>&1; then
-            aws s3 cp "s3://${BACKUP_S3_BUCKET}/${CHECKSUM_KEY}" "${CHECKSUM_PATH}"
+          if aws "${AWS_ARGS[@]}" s3 ls "s3://${BACKUP_S3_BUCKET}/${CHECKSUM_KEY}" >/dev/null 2>&1; then
+            aws "${AWS_ARGS[@]}" s3 cp "s3://${BACKUP_S3_BUCKET}/${CHECKSUM_KEY}" "${CHECKSUM_PATH}"
             (cd "${BACKUP_DIR}" && sha256sum --check "$(basename "${CHECKSUM_PATH}")")
           else
             echo "Checksum file not found in S3, continuing without checksum validation."
