@@ -59,14 +59,10 @@ export const usePlanFeatures = () => {
     maxCategories: tenantLimits?.max_categories ?? planDefinition.defaultLimits.maxCategories,
     maxCarouselSlides: tenantLimits?.max_carousel_slides ?? planDefinition.defaultLimits.maxCarouselSlides,
     maxStaticPages: tenantLimits?.max_static_pages ?? planDefinition.defaultLimits.maxStaticPages,
-    maxImageSizeMb:
-      typeof tenantLimits?.max_image_size_mb === "number"
-        ? Number(tenantLimits.max_image_size_mb)
-        : planDefinition.defaultLimits.maxImageSizeMb,
+    maxImageSizeMb: typeof tenantLimits?.max_image_size_mb === "number" ? Number(tenantLimits.max_image_size_mb): planDefinition.defaultLimits.maxImageSizeMb,
     subscriptionStartedAt: tenantLimits?.subscription_started_at ?? null,
     subscriptionExpiresAt: tenantLimits?.subscription_expires_at ?? null,
-    isSubscriptionActive: !!tenantLimits?.subscription_expires_at
-      && new Date(tenantLimits.subscription_expires_at).getTime() > Date.now(),
+    isSubscriptionActive: !!tenantLimits?.subscription_expires_at && new Date(tenantLimits.subscription_expires_at).getTime() > Date.now(),
   };
 
   return {
