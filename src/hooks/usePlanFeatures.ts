@@ -20,6 +20,9 @@ interface PlanFeatures {
   maxCarouselSlides: number;
   maxStaticPages: number;
   maxImageSizeMb: number;
+  subscriptionStartedAt: string | null;
+  subscriptionExpiresAt: string | null;
+  isSubscriptionActive: boolean;
 }
 
 export const usePlanFeatures = () => {
@@ -60,6 +63,10 @@ export const usePlanFeatures = () => {
       typeof tenantLimits?.max_image_size_mb === "number"
         ? Number(tenantLimits.max_image_size_mb)
         : planDefinition.defaultLimits.maxImageSizeMb,
+    subscriptionStartedAt: tenantLimits?.subscription_started_at ?? null,
+    subscriptionExpiresAt: tenantLimits?.subscription_expires_at ?? null,
+    isSubscriptionActive: !!tenantLimits?.subscription_expires_at
+      && new Date(tenantLimits.subscription_expires_at).getTime() > Date.now(),
   };
 
   return {

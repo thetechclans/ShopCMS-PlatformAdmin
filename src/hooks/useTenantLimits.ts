@@ -9,7 +9,11 @@ interface TenantLimits {
   max_carousel_slides: number;
   max_static_pages: number;
   plan_type: string;
+  subscription_started_at: string;
+  subscription_expires_at: string;
 }
+
+type LimitResource = "products" | "categories" | "carousel_slides" | "static_pages";
 
 export function useTenantLimits() {
   const { tenant } = useTenant();
@@ -31,7 +35,7 @@ export function useTenantLimits() {
     enabled: !!tenant?.id,
   });
 
-  const checkLimit = async (resourceType: keyof TenantLimits, currentCount: number): Promise<boolean> => {
+  const checkLimit = async (resourceType: LimitResource, currentCount: number): Promise<boolean> => {
     if (!limits) return true; // Allow if limits not loaded yet
 
     const maxKey = `max_${resourceType}` as keyof TenantLimits;
@@ -49,10 +53,14 @@ export function useTenantLimits() {
     return fileSizeMB <= limits.max_image_size_mb;
   };
 
+  const isSubscriptionActive = !!limits?.subscription_expires_at
+    && new Date(limits.subscription_expires_at).getTime() > Date.now();
+
   return {
     limits,
     isLoading,
     checkLimit,
     checkImageSize,
+    isSubscriptionActive,
   };
 }

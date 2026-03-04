@@ -1,4 +1,3 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -6,6 +5,65 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
   "Access-Control-Max-Age": "86400",
+};
+
+type AdminUsersBody = {
+  action?: string;
+  email?: string;
+  password?: string;
+  shopName?: string;
+  userId?: string;
+  role?: string;
+  tenantId?: string;
+  tenantIdFilter?: string | null;
+  statusFilter?: string | null;
+  newStatus?: string | null;
+  confirmHardDelete?: boolean;
+};
+
+type RoleRecord = {
+  user_id: string;
+  role: string;
+};
+
+type ProfileRecord = {
+  id: string;
+  shop_name: string | null;
+  email: string | null;
+  tenant_id: string | null;
+  status: string;
+  created_at: string;
+  tenants: {
+    name: string;
+    subdomain: string;
+  } | null;
+};
+
+const jsonResponse = (payload: unknown, status = 200) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const errorResponse = (status: number, code: string, message: string, details?: unknown) =>
+  jsonResponse(
+    {
+      error: message,
+      code,
+      details: details ?? null,
+    },
+    status,
+  );
+
+const toRoleMap = (roles: RoleRecord[]) => {
+  const roleMap = new Map<string, string[]>();
+
+  roles.forEach((row) => {
+    const currentRoles = roleMap.get(row.user_id) ?? [];
+    roleMap.set(row.user_id, [...currentRoles, row.role]);
+  });
+
+  return roleMap;
 };
 
 Deno.serve(async (req) => {
@@ -16,22 +74,14 @@ Deno.serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // Get the user's token from the Authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "No authorization header" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return errorResponse(401, "missing_authorization_header", "No authorization header");
     }
 
-    // Verify the user is authenticated
     const token = authHeader.replace("Bearer ", "");
     const {
       data: { user },
@@ -39,33 +89,26 @@ Deno.serve(async (req) => {
     } = await supabaseClient.auth.getUser(token);
 
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return errorResponse(401, "unauthorized", "Unauthorized");
     }
 
-    // Check if user has super_admin role
-    const { data: roles } = await supabaseClient
+    const { data: superAdminRole, error: superAdminRoleError } = await supabaseClient
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "super_admin")
-      .single();
+      .maybeSingle();
 
-    if (!roles) {
-      console.error("Access denied: User does not have super_admin role");
-      return new Response(
-        JSON.stringify({
-          error: "Access denied. Only super admins can manage users.",
-        }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+    if (superAdminRoleError && superAdminRoleError.code !== "PGRST116") {
+      console.error("Error verifying super_admin role:", superAdminRoleError);
+      return errorResponse(500, "super_admin_role_check_failed", "Failed to verify access");
+    }
+
+    if (!superAdminRole) {
+      return errorResponse(
+        403,
+        "super_admin_required",
+        "Access denied. Only super admins can manage users.",
       );
     }
 
@@ -81,21 +124,10 @@ Deno.serve(async (req) => {
       tenantIdFilter,
       statusFilter,
       newStatus,
-    } = body as {
-      action?: string;
-      email?: string;
-      password?: string;
-      shopName?: string;
-      userId?: string;
-      role?: string;
-      tenantId?: string;
-      tenantIdFilter?: string | null;
-      statusFilter?: string | null;
-      newStatus?: string | null;
-    };
+      confirmHardDelete,
+    } = body as AdminUsersBody;
 
     if (action === "list") {
-      // List all users for platform admin, with optional filters
       let profilesQuery = supabaseClient
         .from("profiles")
         .select(
@@ -110,7 +142,7 @@ Deno.serve(async (req) => {
             name,
             subdomain
           )
-        `
+        `,
         )
         .order("created_at", { ascending: false });
 
@@ -126,13 +158,7 @@ Deno.serve(async (req) => {
 
       if (profilesError) {
         console.error("Error fetching profiles in admin-users function:", profilesError);
-        return new Response(
-          JSON.stringify({ error: profilesError.message }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return errorResponse(500, "profiles_query_failed", profilesError.message);
       }
 
       const { data: domainsData, error: domainsError } = await supabaseClient
@@ -141,39 +167,69 @@ Deno.serve(async (req) => {
 
       if (domainsError) {
         console.error("Error fetching tenant domains in admin-users function:", domainsError);
-        return new Response(
-          JSON.stringify({ error: domainsError.message }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return errorResponse(500, "domains_query_failed", domainsError.message);
       }
 
-      const usersWithDomains = (profilesData || []).map((profile: any) => {
-        const tenantDomains = (domainsData || []).filter(
-          (d: any) => d.tenant_id === profile.tenant_id
-        );
+      const { data: rolesData, error: rolesError } = await supabaseClient
+        .from("user_roles")
+        .select("user_id, role");
+
+      if (rolesError) {
+        console.error("Error fetching user roles in admin-users function:", rolesError);
+        return errorResponse(500, "roles_query_failed", rolesError.message);
+      }
+
+      const roleMap = toRoleMap((rolesData ?? []) as RoleRecord[]);
+      const superAdminCount = new Set(
+        (rolesData ?? [])
+          .filter((row: any) => row.role === "super_admin")
+          .map((row: any) => row.user_id),
+      ).size;
+
+      const tenantAdminCounts = new Map<string, Set<string>>();
+      (profilesData ?? []).forEach((profile: any) => {
+        const rolesForUser = roleMap.get(profile.id) ?? [];
+        const isTenantAdminRole = rolesForUser.some((r) => r === "admin" || r === "shop_owner");
+
+        if (!profile.tenant_id || profile.status !== "active" || !isTenantAdminRole) {
+          return;
+        }
+
+        const existing = tenantAdminCounts.get(profile.tenant_id) ?? new Set<string>();
+        existing.add(profile.id);
+        tenantAdminCounts.set(profile.tenant_id, existing);
+      });
+
+      const usersWithDomains = ((profilesData ?? []) as ProfileRecord[]).map((profile) => {
+        const tenantDomains = (domainsData || []).filter((d: any) => d.tenant_id === profile.tenant_id);
         const primaryDomain = tenantDomains.find((d: any) => d.is_primary);
         const allDomains = tenantDomains.map((d: any) => d.domain);
+        const roles = roleMap.get(profile.id) ?? [];
+        const hasSuperAdminRole = roles.includes("super_admin");
+        const isTenantAdminRole = roles.some((r) => r === "admin" || r === "shop_owner");
+        const tenantAdminCount = profile.tenant_id
+          ? (tenantAdminCounts.get(profile.tenant_id)?.size ?? 0)
+          : 0;
 
         return {
           ...profile,
+          roles,
           domains: allDomains,
           primaryDomain: primaryDomain?.domain || profile.tenants?.subdomain,
+          is_self: profile.id === user.id,
+          is_last_super_admin: hasSuperAdminRole && superAdminCount <= 1,
+          is_last_tenant_admin:
+            profile.status === "active" &&
+            isTenantAdminRole &&
+            Boolean(profile.tenant_id) &&
+            tenantAdminCount <= 1,
         };
       });
 
-      return new Response(
-        JSON.stringify({ users: usersWithDomains }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return jsonResponse({ users: usersWithDomains });
     }
 
     if (action === "create") {
-      // Create new user
       const { data: newUser, error: signUpError } = await supabaseClient.auth.admin.createUser({
         email,
         password,
@@ -183,16 +239,9 @@ Deno.serve(async (req) => {
 
       if (signUpError) {
         console.error("Error creating user:", signUpError);
-        return new Response(
-          JSON.stringify({ error: signUpError.message }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return errorResponse(400, "create_user_failed", signUpError.message);
       }
 
-      // Create profile with tenant_id
       const { error: profileError } = await supabaseClient
         .from("profiles")
         .update({ tenant_id: tenantId })
@@ -202,7 +251,6 @@ Deno.serve(async (req) => {
         console.error("Error updating profile with tenant_id:", profileError);
       }
 
-      // Assign role to new user
       const { error: roleError } = await supabaseClient
         .from("user_roles")
         .insert({
@@ -212,72 +260,143 @@ Deno.serve(async (req) => {
 
       if (roleError) {
         console.error("Error assigning role:", roleError);
-        // Clean up: delete the user if role assignment fails
         await supabaseClient.auth.admin.deleteUser(newUser.user.id);
-        return new Response(
-          JSON.stringify({ error: "Failed to assign role" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return errorResponse(500, "assign_role_failed", "Failed to assign role");
       }
 
-      console.log("User created successfully:", newUser.user.id);
-      return new Response(
-        JSON.stringify({ user: newUser.user }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return jsonResponse({ user: newUser.user });
     }
 
     if (action === "delete") {
       if (!userId) {
-        return new Response(
-          JSON.stringify({
-            error: "userId is required for delete action",
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+        return errorResponse(400, "missing_user_id", "userId is required for delete action");
+      }
+
+      if (!confirmHardDelete) {
+        return errorResponse(
+          400,
+          "hard_delete_confirmation_required",
+          "confirmHardDelete must be true to permanently delete a user",
         );
       }
 
-      // Delete user and their roles (cascade will handle roles table)
+      if (userId === user.id) {
+        return errorResponse(403, "cannot_delete_self", "You cannot delete your own account");
+      }
+
+      const { data: targetProfile, error: targetProfileError } = await supabaseClient
+        .from("profiles")
+        .select("id, email, shop_name, tenant_id, status")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (targetProfileError && targetProfileError.code !== "PGRST116") {
+        console.error("Error loading target profile for deletion:", targetProfileError);
+        return errorResponse(500, "target_profile_query_failed", targetProfileError.message);
+      }
+
+      if (!targetProfile) {
+        return errorResponse(404, "user_not_found", "Target user was not found");
+      }
+
+      const { data: targetRolesData, error: targetRolesError } = await supabaseClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+
+      if (targetRolesError) {
+        console.error("Error loading target roles for deletion:", targetRolesError);
+        return errorResponse(500, "target_roles_query_failed", targetRolesError.message);
+      }
+
+      const targetRoles = (targetRolesData ?? []).map((row: any) => row.role as string);
+      const hasSuperAdminRole = targetRoles.includes("super_admin");
+      const hasTenantAdminRole = targetRoles.some((r) => r === "admin" || r === "shop_owner");
+
+      if (hasSuperAdminRole) {
+        const { data: superAdminRoles, error: superAdminCountError } = await supabaseClient
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "super_admin");
+
+        if (superAdminCountError) {
+          console.error("Error checking super admin count:", superAdminCountError);
+          return errorResponse(500, "super_admin_count_query_failed", superAdminCountError.message);
+        }
+
+        const superAdminCount = new Set((superAdminRoles ?? []).map((row: any) => row.user_id)).size;
+        if (superAdminCount <= 1) {
+          return errorResponse(
+            403,
+            "last_super_admin_protected",
+            "Cannot delete the last remaining super admin",
+          );
+        }
+      }
+
+      if (targetProfile.tenant_id && targetProfile.status === "active" && hasTenantAdminRole) {
+        const { data: activeTenantAdmins, error: activeTenantAdminsError } = await supabaseClient
+          .from("profiles")
+          .select("id, user_roles!inner(role)")
+          .eq("tenant_id", targetProfile.tenant_id)
+          .eq("status", "active")
+          .in("user_roles.role", ["admin", "shop_owner"]);
+
+        if (activeTenantAdminsError) {
+          console.error("Error checking tenant admin count:", activeTenantAdminsError);
+          return errorResponse(
+            500,
+            "tenant_admin_count_query_failed",
+            activeTenantAdminsError.message,
+          );
+        }
+
+        const tenantAdminCount = new Set((activeTenantAdmins ?? []).map((row: any) => row.id)).size;
+        if (tenantAdminCount <= 1) {
+          return errorResponse(
+            403,
+            "last_tenant_admin_protected",
+            "Cannot delete the last active tenant admin/shop owner",
+          );
+        }
+      }
+
       const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userId);
 
       if (deleteError) {
         console.error("Error deleting user:", deleteError);
-        return new Response(
-          JSON.stringify({ error: deleteError.message }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return errorResponse(400, "delete_user_failed", deleteError.message);
       }
 
-      console.log("User deleted successfully:", userId);
-      return new Response(
-        JSON.stringify({ success: true }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      const { error: auditError } = await supabaseClient.from("audit_logs").insert({
+        user_id: user.id,
+        action: "USER_HARD_DELETE",
+        table_name: "profiles",
+        record_id: userId,
+        old_data: {
+          user_id: targetProfile.id,
+          email: targetProfile.email,
+          shop_name: targetProfile.shop_name,
+          tenant_id: targetProfile.tenant_id,
+          status: targetProfile.status,
+          roles: targetRoles,
+        },
+        new_data: null,
+      });
+
+      if (auditError) {
+        console.error("Failed to write deletion audit log:", auditError);
+      }
+
+      return jsonResponse({ success: true, userId });
     }
 
     if (action === "update-status") {
       if (!userId || !newStatus) {
-        return new Response(
-          JSON.stringify({
-            error: "userId and newStatus are required for update-status action",
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+        return errorResponse(
+          400,
+          "missing_status_update_params",
+          "userId and newStatus are required for update-status action",
         );
       }
 
@@ -288,41 +407,16 @@ Deno.serve(async (req) => {
 
       if (statusError) {
         console.error("Error updating user status in admin-users function:", statusError);
-        return new Response(
-          JSON.stringify({ error: statusError.message }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return errorResponse(500, "update_status_failed", statusError.message);
       }
 
-      console.log("User status updated successfully:", { userId, status: newStatus });
-      return new Response(
-        JSON.stringify({ success: true }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return jsonResponse({ success: true });
     }
 
-    return new Response(
-      JSON.stringify({ error: "Invalid action" }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return errorResponse(400, "invalid_action", "Invalid action");
   } catch (error) {
     console.error("Error in admin-users function:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return errorResponse(500, "admin_users_unhandled_error", errorMessage);
   }
-
 });

@@ -25,6 +25,7 @@ const managementItems = [
 ];
 
 const subscriptionItems = [
+  { title: "Tenant Subscriptions", url: "/platform/admin/tenant-subscriptions", icon: Users },
   { title: "Subscription Plans", url: "/platform/admin/subscriptions", icon: CreditCard },
   { title: "Tenant Requests", url: "/platform/admin/tenant-requests", icon: FileText },
 ];
