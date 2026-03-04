@@ -30,6 +30,16 @@ Workflows:
 - `AWS_DEFAULT_REGION`
 - `BACKUP_S3_BUCKET`
 - `BACKUP_NOTIFICATION_WEBHOOK` (optional, recommended)
+- `S3_ENDPOINT_URL` (optional for MinIO/S3-compatible stores)
+- `S3_FORCE_PATH_STYLE` (optional, set `true` for MinIO path-style endpoints)
+
+## S3 Backend Modes
+- AWS S3 mode (default): leave `S3_ENDPOINT_URL` empty.
+- MinIO / S3-compatible mode: set `S3_ENDPOINT_URL` (for example `https://minio.example.com`) and set `S3_FORCE_PATH_STYLE=true`.
+
+Note:
+- GitHub-hosted runners must be able to reach the endpoint publicly.
+- For private/local MinIO, use a self-hosted GitHub Actions runner in the same network.
 
 ## S3 Layout and Retention
 - Daily prefix: `daily/` (retain 35)

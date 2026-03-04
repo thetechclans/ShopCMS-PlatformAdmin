@@ -20,6 +20,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+      S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+      S3_FORCE_PATH_STYLE: ${{ secrets.S3_FORCE_PATH_STYLE }}
       BACKUP_NOTIFICATION_WEBHOOK: ${{ secrets.BACKUP_NOTIFICATION_WEBHOOK }}
 
     steps:
@@ -60,19 +62,35 @@ jobs:
       - name: Upload backup to S3
         if: ${{ env.BACKUP_S3_BUCKET != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: |
-          aws s3 cp \
+          AWS_ARGS=()
+          if [[ -n "${S3_ENDPOINT_URL}" ]]; then
+            AWS_ARGS+=(--endpoint-url "${S3_ENDPOINT_URL}")
+          fi
+          if [[ "${S3_FORCE_PATH_STYLE,,}" == "true" ]]; then
+            aws configure set default.s3.addressing_style path
+          fi
+
+          aws "${AWS_ARGS[@]}" s3 cp \
             "${{ steps.backup.outputs.backup_file }}" \
             "s3://${BACKUP_S3_BUCKET}/${BACKUP_S3_PREFIX}/${{ steps.backup.outputs.backup_name }}"
 
-          aws s3 cp \
+          aws "${AWS_ARGS[@]}" s3 cp \
             "${{ steps.verify.outputs.checksum_file }}" \
             "s3://${BACKUP_S3_BUCKET}/${BACKUP_S3_PREFIX}/${{ steps.backup.outputs.backup_name }}.sha256"
 
       - name: Apply S3 retention policy (keep 12 weekly backups)
         if: ${{ env.BACKUP_S3_BUCKET != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_DEFAULT_REGION != '' }}
         run: |
+          AWS_ARGS=()
+          if [[ -n "${S3_ENDPOINT_URL}" ]]; then
+            AWS_ARGS+=(--endpoint-url "${S3_ENDPOINT_URL}")
+          fi
+          if [[ "${S3_FORCE_PATH_STYLE,,}" == "true" ]]; then
+            aws configure set default.s3.addressing_style path
+          fi
+
           mapfile -t backup_keys < <(
-            aws s3api list-objects-v2 \
+            aws "${AWS_ARGS[@]}" s3api list-objects-v2 \
               --bucket "${BACKUP_S3_BUCKET}" \
               --prefix "${BACKUP_S3_PREFIX}/" \
               --query 'sort_by(Contents,&LastModified)[].Key' \
@@ -81,8 +99,8 @@ jobs:
 
           if (( ${#backup_keys[@]} > RETENTION_COUNT )); then
             for old_backup_key in "${backup_keys[@]:0:${#backup_keys[@]}-RETENTION_COUNT}"; do
-              aws s3 rm "s3://${BACKUP_S3_BUCKET}/${old_backup_key}"
-              aws s3 rm "s3://${BACKUP_S3_BUCKET}/${old_backup_key}.sha256" || true
+              aws "${AWS_ARGS[@]}" s3 rm "s3://${BACKUP_S3_BUCKET}/${old_backup_key}"
+              aws "${AWS_ARGS[@]}" s3 rm "s3://${BACKUP_S3_BUCKET}/${old_backup_key}.sha256" || true
             done
           fi
 
