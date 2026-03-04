@@ -303,7 +303,8 @@ SELECT
       ORDER BY td.created_at DESC NULLS LAST
       LIMIT 1
     ),
-    p.domain
+    p.domain,
+    '__UNRESOLVED__'
   ) AS host,
   CASE
     WHEN EXISTS (
@@ -348,7 +349,7 @@ UNION ALL
 SELECT
   a.id,
   a.name,
-  NULL AS host,
+  '__UNRESOLVED__' AS host,
   'unresolved' AS source,
   a.subscription_expires_at
 FROM active_subscribed a
@@ -384,7 +385,7 @@ if [[ "$db_ok" == true ]]; then
   while IFS=$'\t' read -r tenant_id tenant_name host source subscription_expires_at; do
     [[ -z "${tenant_id:-}" ]] && continue
 
-    if [[ -z "${host:-}" || "${source:-}" == "unresolved" ]]; then
+    if [[ -z "${host:-}" || "${host:-}" == "__UNRESOLVED__" || "${source:-}" == "unresolved" ]]; then
       add_issue "warning" "tenant_domain_not_configured" "No verified domain configured for active tenant" "$tenant_id"
 
       jq -cn \
