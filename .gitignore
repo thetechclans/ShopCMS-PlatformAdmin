@@ -137,3 +137,19 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local ops tooling and generated artifacts
+.tools/
+tmp/
+artifacts/backups/
+artifacts/health/
+shopcms_db_*.dump
+shopcms_db_*.dump.zst
+shopcms_db_*.dump.zst.sha256
+
+# Editor and OS junk
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
