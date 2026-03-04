@@ -303,14 +303,7 @@ SELECT
       ORDER BY td.created_at DESC NULLS LAST
       LIMIT 1
     ),
-    p.domain,
-    CASE
-      WHEN COALESCE(NULLIF(TRIM(a.subdomain), ''), '') <> ''
-       AND COALESCE(NULLIF(TRIM(a.subdomain), ''), '') ~ '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
-       AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
-      THEN LOWER(TRIM(a.subdomain)) || '.' || '${PLATFORM_BASE_DOMAIN_SQL}'
-      ELSE NULL
-    END
+    p.domain
   ) AS host,
   CASE
     WHEN EXISTS (
@@ -320,10 +313,6 @@ SELECT
         AND td.is_primary=true
     ) THEN 'primary_verified_domain'
     WHEN p.domain IS NOT NULL THEN 'verified_domain'
-    WHEN COALESCE(NULLIF(TRIM(a.subdomain), ''), '') <> ''
-       AND COALESCE(NULLIF(TRIM(a.subdomain), ''), '') ~ '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
-       AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
-    THEN 'subdomain_fallback'
     ELSE 'unresolved'
   END AS source,
   a.subscription_expires_at
@@ -359,28 +348,12 @@ UNION ALL
 SELECT
   a.id,
   a.name,
-  LOWER(TRIM(a.subdomain)) || '.' || '${PLATFORM_BASE_DOMAIN_SQL}' AS host,
-  'subdomain_fallback' AS source,
-  a.subscription_expires_at
-FROM active_subscribed a
-LEFT JOIN verified_counts vc ON vc.tenant_id=a.id
-WHERE COALESCE(vc.verified_count, 0)=0
-  AND '${PLATFORM_BASE_DOMAIN_SQL}' <> ''
-  AND COALESCE(NULLIF(TRIM(a.subdomain), ''), '') ~ '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
-UNION ALL
-SELECT
-  a.id,
-  a.name,
   NULL AS host,
   'unresolved' AS source,
   a.subscription_expires_at
 FROM active_subscribed a
 LEFT JOIN verified_counts vc ON vc.tenant_id=a.id
 WHERE COALESCE(vc.verified_count, 0)=0
-  AND (
-    '${PLATFORM_BASE_DOMAIN_SQL}' = ''
-    OR COALESCE(NULLIF(TRIM(a.subdomain), ''), '') !~ '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
-  )
 ORDER BY 2, 3;
 "
   fi
@@ -412,9 +385,7 @@ if [[ "$db_ok" == true ]]; then
     [[ -z "${tenant_id:-}" ]] && continue
 
     if [[ -z "${host:-}" || "${source:-}" == "unresolved" ]]; then
-      total_targets=$((total_targets + 1))
-      failed_targets=$((failed_targets + 1))
-      add_issue "critical" "tenant_host_unresolved" "No resolvable host for active tenant" "$tenant_id"
+      add_issue "warning" "tenant_domain_not_configured" "No verified domain configured for active tenant" "$tenant_id"
 
       jq -cn \
         --arg tenant_id "$tenant_id" \
@@ -422,10 +393,10 @@ if [[ "$db_ok" == true ]]; then
         --arg source "unresolved" \
         --arg mode "$MODE" \
         --arg subscription_expires_at "$subscription_expires_at" \
-        '{tenant_id:$tenant_id,tenant_name:$tenant_name,host:null,source:$source,url:null,mode:$mode,subscription_expires_at:$subscription_expires_at,success:false,http_status:null,connect_ms:null,ttfb_ms:null,total_ms:null,remote_ip:null,dns_ok:null,dns_ips:null,tls_days_left:null,error:"host_unresolved"}' >> "$probes_file"
+        '{tenant_id:$tenant_id,tenant_name:$tenant_name,host:null,source:$source,url:null,mode:$mode,subscription_expires_at:$subscription_expires_at,success:false,http_status:null,connect_ms:null,ttfb_ms:null,total_ms:null,remote_ip:null,dns_ok:null,dns_ips:null,tls_days_left:null,error:"no_verified_domain"}' >> "$probes_file"
 
       printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$tenant_name" "-" "unresolved" "-" "-" "-" "-" "-" "-" "FAIL" >> "$table_file"
+        "$tenant_name" "-" "unresolved" "-" "-" "-" "-" "-" "-" "SKIP" >> "$table_file"
       continue
     fi
 
@@ -556,7 +527,7 @@ if [[ "$db_ok" == true && "$active_subscribed_tenants" -eq 0 ]]; then
 fi
 
 if (( total_targets == 0 )); then
-  add_issue "critical" "no_probe_targets" "No probe targets were generated"
+  add_issue "warning" "no_probe_targets" "No probe targets with verified domains were generated"
 fi
 
 if (( total_targets > 0 )); then
